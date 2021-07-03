@@ -1,0 +1,9 @@
+GUI: 
+- [X] actions, and an action for ending the sessions
+- [ ] noinput vs maxspeech
+- [ ] confidence level
+- [ ] recognition hypotheses (not a big deal)
+- [ ] problem with silent TTS
+
+TDM:
+- [ ] kubernetes for Vlad
