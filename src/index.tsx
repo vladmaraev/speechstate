@@ -9,8 +9,8 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 
 import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
 
-/* import { dmMachine } from "./tdmClient"; */
-import { dmMachine } from "./dmColourChanger";
+import { dmMachine } from "./tdmClient";
+/* import { dmMachine } from "./dmColourChanger"; */
 
 
 inspect({
@@ -20,10 +20,9 @@ inspect({
 
 const { send, cancel } = actions;
 
-
+const defaultPassivity = 5
 
 const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken'
-const SUBSCRIPTION_KEY = '2768ca1669b44fa1b5beaaaed2938853'
 const REGION = 'northeurope'
 
 const machine = Machine<SDSContext, any, SDSEvent>({
@@ -47,7 +46,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     }
                 },
                 recognising: {
-                    initial: 'progress',
+                    initial: 'noinput',
                     entry: 'recStart',
                     exit: 'recStop',
                     on: {
@@ -55,21 +54,26 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                             actions: ['recLogResult',
                                 assign((_context, event) => {
                                     return {
-                                        recResult: [{
-                                            "utterance": event.value,
-                                            "confidence": 1
-                                        }]
+                                        recResult: event.value
                                     }
                                 })],
                             target: '.match'
                         },
                         RECOGNISED: 'idle',
-                        TIMEOUT: 'idle'
-
-
                     },
                     states: {
-                        progress: {
+                        noinput: {
+                            entry: send(
+                                { type: 'TIMEOUT' },
+                                { delay: (context) => (1000 * (defaultPassivity || context.tdmPassivity)), id: 'timeout' }
+                            ),
+                            on: {
+                                TIMEOUT: '#root.asrtts.idle',
+                                STARTSPEECH: 'inprogress'
+                            },
+                            exit: cancel('timeout')
+                        },
+                        inprogress: {
                         },
                         match: {
                             entry: send('RECOGNISED'),
@@ -156,6 +160,8 @@ function App() {
      * }); */
 
     const {
+        interimTranscript,
+        finalTranscript,
         transcript,
         listening,
         resetTranscript
@@ -166,34 +172,43 @@ function App() {
             continuous: true,
             language: 'en-US'
         });
-
     }
-
+    const stopListening = () => {
+        SpeechRecognition.stopListening()
+    }
 
     React.useEffect(() => {
         async function fetchASR() {
             const response = await fetch(TOKEN_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY }
+                headers: { 'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY! }
             });
             const authorizationToken = await response.text();
             const
-                { SpeechRecognition }
+                { SpeechRecognition: AzureSpeechRecognition }
                     = await createSpeechRecognitionPonyfill({
                         credentials: {
                             region: REGION,
-                            subscriptionKey: authorizationToken,
+                            authorizationToken: authorizationToken,
                         }
                     });
-            SpeechRecognition.onresult = (result: any) => {
-                console.log(result)
-                // send({ type: "ASRRESULT", value: result });
+            SpeechRecognition.applyPolyfill(AzureSpeechRecognition);
+            const rec = SpeechRecognition.getRecognition()
+            rec!.onresult = function(event: any) {
+                console.log(event.results)
+                var result = event.results[0]
+                if (result.isFinal) {
+                    send({
+                        type: "ASRRESULT", value:
+                            [{
+                                "utterance": result[0].transcript,
+                                "confidence": result[0].confidence
+                            }]
+                    })
+                } else {
+                    send({ type: "STARTSPEECH" });
+                }
             }
-            /* const recognition = new SpeechRecognition(); */
-            /* SpeechRecognition.applyPolyfill(); */
-            /* recognition.onresult = (result: any) => {
-             *     send({ type: "ASRRESULT", value: result });
-             * } */
         }
         fetchASR()
     }, []
@@ -212,10 +227,10 @@ function App() {
                 /* speechRecognition.start() */
             }),
 
-            /* recStop: asEffect(() => {
-             *     console.log('Recognition stopped.');
-             *     stop()
-             * }), */
+            recStop: asEffect(() => {
+                console.log('Recognition stopped.');
+                stopListening()
+            }),
             ttsStart: asEffect((context, effect) => {
                 console.log('Speaking...');
                 speak({ text: context.ttsAgenda })

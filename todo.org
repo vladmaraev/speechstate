@@ -1,7 +1,7 @@
 GUI: 
 - [X] actions, and an action for ending the sessions
-- [ ] noinput vs maxspeech
-- [ ] confidence level
+- [X] noinput vs maxspeech
+- [X] confidence level
 - [ ] recognition hypotheses (not a big deal)
 - [ ] problem with silent TTS
 

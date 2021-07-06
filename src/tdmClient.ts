@@ -24,7 +24,6 @@ const startSession = {
     }
 }
 
-const defaultPassivity = 5
 const passivity = (sessionId: string) => ({
     "version": "3.3",
     "session": { "session_id": sessionId },
@@ -112,12 +111,8 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                         ask: {
                             entry: [
                                 send('LISTEN'),
-                                send(
-                                    { type: 'TIMEOUT' },
-                                    { delay: (context) => (1000 * (defaultPassivity || context.tdmPassivity)), id: 'timeout' }
-                                )
+
                             ],
-                            exit: cancel('timeout')
                         },
                     }
                 },
