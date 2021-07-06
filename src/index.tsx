@@ -5,7 +5,7 @@ import { Machine, assign, actions, State } from "xstate";
 import { useMachine, asEffect } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
 import { useSpeechSynthesis } from 'react-speech-kit';
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import SpeechRecognition from 'react-speech-recognition';
 
 import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
 
@@ -159,14 +159,6 @@ function App() {
      *     },
      * }); */
 
-    const {
-        interimTranscript,
-        finalTranscript,
-        transcript,
-        listening,
-        resetTranscript
-    } = useSpeechRecognition();
-
     const startListening = () => {
         SpeechRecognition.startListening({
             continuous: true,
@@ -215,7 +207,7 @@ function App() {
     )
 
 
-    const [current, send, _service] = useMachine(machine, {
+    const [current, send, service] = useMachine(machine, {
         devTools: true,
         actions: {
             loadSpeechRecognition: asEffect(async () => {
@@ -231,11 +223,11 @@ function App() {
                 console.log('Recognition stopped.');
                 stopListening()
             }),
-            ttsStart: asEffect((context, effect) => {
+            ttsStart: asEffect((context) => {
                 console.log('Speaking...');
                 speak({ text: context.ttsAgenda })
             }),
-            ttsCancel: asEffect((context, effect) => {
+            ttsCancel: asEffect(() => {
                 console.log('TTS STOP...');
                 cancel()
             })

@@ -1,6 +1,4 @@
-import { MachineConfig, actions, assign } from "xstate";
-
-const { send, cancel } = actions;
+import { MachineConfig, send, assign } from "xstate";
 
 const proxyurl = "https://cors-anywhere.herokuapp.com/";
 const tdmEndpoint = "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"

@@ -1,0 +1,15 @@
+diff --git a/node_modules/@types/react-speech-recognition/index.d.ts b/node_modules/@types/react-speech-recognition/index.d.ts
+xindex bc8a424..2ec18db 100644
+--- a/node_modules/@types/react-speech-recognition/index.d.ts
++++ b/node_modules/@types/react-speech-recognition/index.d.ts
+@@ -21,8 +21,10 @@ interface SpeechRecognition {
+     getRecognition(): SpeechRecognition | null;
+     startListening(options?: ListeningOptions): Promise<void>;
+     stopListening(): void;
++    applyPolyfill(AzureSpeechRecognition): void;
+     abortListening(): void;
+     browserSupportsSpeechRecognition(): boolean;
++    onresult: any;
+ }
+ 
+ export interface SpeechRecognitionOptions {
