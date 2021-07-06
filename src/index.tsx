@@ -4,9 +4,13 @@ import * as ReactDOM from "react-dom";
 import { Machine, assign, actions, State } from "xstate";
 import { useMachine, asEffect } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
-import { useSpeechSynthesis, useSpeechRecognition } from 'react-speech-kit';
+import { useSpeechSynthesis } from 'react-speech-kit';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
-/* import { dmMachine } from "./dmColourChanger"; */
+import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
+
+/* import { dmMachine } from "./tdmClient"; */
+import { dmMachine } from "./dmColourChanger";
 
 
 inspect({
@@ -16,182 +20,18 @@ inspect({
 
 const { send, cancel } = actions;
 
-const proxyurl = "https://cors-anywhere.herokuapp.com/";
-const tdmEndpoint = "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"
-const tdmSession = {
-    "session": {
-        "my_frontend": {
-            "user_id": "speechstate",
-            "position": {
-                "latitude": "57.699188",
-                "longitude": "11.948313"
-            }
-        }
-    }
-}
-
-const startSession = {
-    "version": "3.3",
-    "session": tdmSession,
-    "request": {
-        "start_session": {}
-    }
-}
-
-const defaultPassivity = 5
-const passivity = (sessionId: string) => ({
-    "version": "3.3",
-    "session": { "session_id": sessionId },
-    "request": {
-        "passivity": {}
-    }
-})
-
-const nlInput = (sessionId: string, hypotheses: Hypothesis[]) => ({
-    "version": "3.3",
-    "session": { "session_id": sessionId },
-    "request": {
-        "natural_language_input": {
-            "modality": "speech",
-            "hypotheses": hypotheses
-        }
-    }
-})
 
 
-const tdmRequest = (requestBody: any) => (fetch(new Request(proxyurl + tdmEndpoint, {
-    method: 'POST',
-    headers: {
-        'Content-type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-})).then(data => data.json()))
-
-const isEndSession = (context: SDSContext) => {
-    return context.tdmActions.some((item: any) => item.name === 'EndSession')
-};
+const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken'
+const SUBSCRIPTION_KEY = '2768ca1669b44fa1b5beaaaed2938853'
+const REGION = 'northeurope'
 
 const machine = Machine<SDSContext, any, SDSEvent>({
     id: 'root',
     type: 'parallel',
     states: {
         dm: {
-            initial: 'init',
-            states: {
-                init: {
-                    on: {
-                        CLICK: 'tdm'
-                    }
-                },
-                tdm: {
-                    initial: 'start',
-                    states: {
-                        start: {
-                            invoke: {
-                                id: "startSession",
-                                src: (_ctx, _evt) => tdmRequest(startSession),
-                                onDone: [
-                                    {
-                                        target: 'utter',
-                                        actions: assign({
-                                            sessionId: (_ctx, event) => event.data.session.session_id,
-                                            tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                            tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                            tdmActions: (_ctx, event) => event.data.output.actions,
-                                        }),
-                                        cond: (_ctx, event) => event.data.output
-                                    },
-                                    {
-                                        target: 'fail'
-                                    }
-                                ],
-                                onError: { target: 'fail' }
-                            }
-                        },
-                        utter: {
-                            initial: 'prompt',
-                            on: {
-                                RECOGNISED: 'next',
-                                TIMEOUT: 'passivity'
-                            },
-                            states: {
-                                prompt: {
-                                    entry: send((context: SDSContext) => ({
-                                        type: "SPEAK", value: context.tdmUtterance
-                                    })),
-                                    on: {
-                                        ENDSPEECH:
-                                            [
-                                                {
-                                                    target: '#root.dm.init',
-                                                    cond: (context, _evnt) => context.tdmActions.some((item: any) => item.name === 'EndSession')
-                                                },
-                                                { target: 'ask' }
-                                            ]
-
-                                    }
-                                },
-                                ask: {
-                                    entry: [
-                                        send('LISTEN'),
-                                        send(
-                                            { type: 'TIMEOUT' },
-                                            { delay: (context) => (1000 * (defaultPassivity || context.tdmPassivity)), id: 'timeout' }
-                                        )
-                                    ],
-                                    exit: cancel('timeout')
-                                },
-                            }
-                        },
-                        next: {
-                            invoke: {
-                                id: "nlInput",
-                                src: (context, _evt) => tdmRequest(nlInput(context.sessionId, context.recResult)),
-                                onDone: [
-                                    {
-                                        target: 'utter',
-                                        actions:
-                                            assign({
-                                                tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                                tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                                tdmActions: (_ctx, event) => event.data.output.actions,
-                                            }),
-                                        cond: (_ctx, event) => event.data.output
-                                    },
-                                    {
-                                        target: 'fail'
-                                    }
-                                ],
-                                onError: { target: 'fail' }
-                            }
-
-                        },
-                        passivity: {
-                            invoke: {
-                                id: "passivity",
-                                src: (context, _evt) => tdmRequest(passivity(context.sessionId)),
-                                onDone: [
-                                    {
-                                        target: 'utter',
-                                        actions: assign({
-                                            tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                            tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                            tdmActions: (_ctx, event) => event.data.output.actions,
-                                        }),
-                                        cond: (_ctx, event) => event.data.output
-                                    },
-                                    {
-                                        target: 'fail'
-                                    }
-                                ],
-                                onError: { target: 'fail' }
-                            }
-
-                        },
-                        fail: {}
-                    },
-                },
-            },
+            ...dmMachine
         },
 
         asrtts: {
@@ -300,34 +140,81 @@ const ReactiveButton = (props: Props): JSX.Element => {
     }
 }
 
+
+
 function App() {
+
     const { speak, cancel, speaking } = useSpeechSynthesis({
         onEnd: () => {
             send('ENDSPEECH');
         },
     });
-    const { listen, listening, stop } = useSpeechRecognition({
-        onResult: (result: any) => {
-            send({ type: "ASRRESULT", value: result });
-        },
-    });
-    const [current, send, service] = useMachine(machine, {
+    /* const { listen, _listening, stop } = useSpeechRecognition({
+     *     onResult: (result: any) => {
+     *         send({ type: "ASRRESULT", value: result });
+     *     },
+     * }); */
+
+    const {
+        transcript,
+        listening,
+        resetTranscript
+    } = useSpeechRecognition();
+
+    const startListening = () => {
+        SpeechRecognition.startListening({
+            continuous: true,
+            language: 'en-US'
+        });
+
+    }
+
+
+    React.useEffect(() => {
+        async function fetchASR() {
+            const response = await fetch(TOKEN_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY }
+            });
+            const authorizationToken = await response.text();
+            const
+                { SpeechRecognition }
+                    = await createSpeechRecognitionPonyfill({
+                        credentials: {
+                            region: REGION,
+                            subscriptionKey: authorizationToken,
+                        }
+                    });
+            SpeechRecognition.onresult = (result: any) => {
+                console.log(result)
+                // send({ type: "ASRRESULT", value: result });
+            }
+            /* const recognition = new SpeechRecognition(); */
+            /* SpeechRecognition.applyPolyfill(); */
+            /* recognition.onresult = (result: any) => {
+             *     send({ type: "ASRRESULT", value: result });
+             * } */
+        }
+        fetchASR()
+    }, []
+    )
+
+
+    const [current, send, _service] = useMachine(machine, {
         devTools: true,
         actions: {
+            loadSpeechRecognition: asEffect(async () => {
+
+            }),
             recStart: asEffect(() => {
-                console.log('Ready to receive voice input.');
-                listen({
-                    interimResults: false,
-                    continuous: true
-                });
+                console.log('Ready to receive a voice input.');
+                startListening()
+                /* speechRecognition.start() */
             }),
-            recStop: asEffect(() => {
-                console.log('Recognition stopped.');
-                stop()
-            }),
-            /* changeColour: asEffect((context) => {
-             *     console.log('Repainting...');
-             *     document.body.style.background = context.recResult;
+
+            /* recStop: asEffect(() => {
+             *     console.log('Recognition stopped.');
+             *     stop()
              * }), */
             ttsStart: asEffect((context, effect) => {
                 console.log('Speaking...');
@@ -358,4 +245,5 @@ const rootElement = document.getElementById("root");
 ReactDOM.render(
     <App />,
     rootElement);
+
 

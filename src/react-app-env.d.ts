@@ -2,6 +2,8 @@
 
 declare module 'react-speech-kit';
 
+declare module 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText';
+
 interface Hypothesis {
     "utterance": string;
     "confidence": number
