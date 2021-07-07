@@ -4,13 +4,39 @@ import * as ReactDOM from "react-dom";
 import { Machine, assign, actions, State } from "xstate";
 import { useMachine, asEffect } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
-import { useSpeechSynthesis } from 'react-speech-kit';
 import SpeechRecognition from 'react-speech-recognition';
 
 import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
+import createPonyfill from 'web-speech-cognitive-services/lib/SpeechServices';
 
 import { dmMachine } from "./tdmClient";
 /* import { dmMachine } from "./dmColourChanger"; */
+
+var myTTS = speechSynthesis;
+var myTTSUtterance = SpeechSynthesisUtterance;
+
+const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken';
+const REGION = 'northeurope';
+
+(async function() {
+    try {
+        const response = await fetch(TOKEN_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY! }
+        });
+        const authorizationToken = await response.text();
+
+        const ponyfill = await createPonyfill({
+            credentials: {
+                region: REGION,
+                authorizationToken: authorizationToken,
+            }
+        });
+        const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
+        myTTS = speechSynthesis;
+        myTTSUtterance = SpeechSynthesisUtterance;
+    } catch (e) { }
+})();
 
 
 inspect({
@@ -21,9 +47,6 @@ inspect({
 const { send, cancel } = actions;
 
 const defaultPassivity = 5
-
-const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken'
-const REGION = 'northeurope'
 
 const machine = Machine<SDSContext, any, SDSEvent>({
     id: 'root',
@@ -148,17 +171,6 @@ const ReactiveButton = (props: Props): JSX.Element => {
 
 function App() {
 
-    const { speak, cancel, speaking } = useSpeechSynthesis({
-        onEnd: () => {
-            send('ENDSPEECH');
-        },
-    });
-    /* const { listen, _listening, stop } = useSpeechRecognition({
-     *     onResult: (result: any) => {
-     *         send({ type: "ASRRESULT", value: result });
-     *     },
-     * }); */
-
     const startListening = () => {
         SpeechRecognition.startListening({
             continuous: true,
@@ -170,7 +182,7 @@ function App() {
     }
 
     React.useEffect(() => {
-        async function fetchASR() {
+        async function fetchASRTTS() {
             const response = await fetch(TOKEN_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY! }
@@ -184,7 +196,7 @@ function App() {
                             authorizationToken: authorizationToken,
                         }
                     });
-            SpeechRecognition.applyPolyfill(AzureSpeechRecognition);
+            SpeechRecognition.applyPolyfill(AzureSpeechRecognition)
             const rec = SpeechRecognition.getRecognition()
             rec!.onresult = function(event: any) {
                 console.log(event.results)
@@ -202,7 +214,7 @@ function App() {
                 }
             }
         }
-        fetchASR()
+        fetchASRTTS()
     }, []
     )
 
@@ -210,26 +222,28 @@ function App() {
     const [current, send, service] = useMachine(machine, {
         devTools: true,
         actions: {
-            loadSpeechRecognition: asEffect(async () => {
-
-            }),
             recStart: asEffect(() => {
                 console.log('Ready to receive a voice input.');
                 startListening()
                 /* speechRecognition.start() */
             }),
-
             recStop: asEffect(() => {
                 console.log('Recognition stopped.');
                 stopListening()
             }),
             ttsStart: asEffect((context) => {
                 console.log('Speaking...');
-                speak({ text: context.ttsAgenda })
+                const voices = myTTS.getVoices();
+                console.log(voices)
+                const utterance = new myTTSUtterance(context.ttsAgenda);
+                utterance.voice = voices.find(voice => /en-US-AriaNeural/u.test(voice.name))!
+                utterance.onend = () => send('ENDSPEECH')
+                myTTS.speak(utterance)
             }),
             ttsCancel: asEffect(() => {
                 console.log('TTS STOP...');
-                cancel()
+                /* cancel() */
+                speechSynthesis.cancel()
             })
             /* speak: asEffect((context) => {
              * console.log('Speaking...');
