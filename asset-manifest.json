@@ -1,0 +1,20 @@
+{
+  "files": {
+    "main.css": "/speechstate/static/css/main.b528de9c.chunk.css",
+    "main.js": "/speechstate/static/js/main.c4570e82.chunk.js",
+    "main.js.map": "/speechstate/static/js/main.c4570e82.chunk.js.map",
+    "runtime-main.js": "/speechstate/static/js/runtime-main.b9da0720.js",
+    "runtime-main.js.map": "/speechstate/static/js/runtime-main.b9da0720.js.map",
+    "static/js/2.67254c04.chunk.js": "/speechstate/static/js/2.67254c04.chunk.js",
+    "static/js/2.67254c04.chunk.js.map": "/speechstate/static/js/2.67254c04.chunk.js.map",
+    "index.html": "/speechstate/index.html",
+    "static/css/main.b528de9c.chunk.css.map": "/speechstate/static/css/main.b528de9c.chunk.css.map",
+    "static/js/2.67254c04.chunk.js.LICENSE.txt": "/speechstate/static/js/2.67254c04.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.b9da0720.js",
+    "static/js/2.67254c04.chunk.js",
+    "static/css/main.b528de9c.chunk.css",
+    "static/js/main.c4570e82.chunk.js"
+  ]
+}
