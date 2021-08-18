@@ -35,7 +35,7 @@ const REGION = 'northeurope';
         const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
         myTTS = speechSynthesis;
         myTTSUtterance = SpeechSynthesisUtterance;
-    } catch (e) { }
+    } catch (e) { console.log(e) }
 })();
 
 
