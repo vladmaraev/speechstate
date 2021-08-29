@@ -17,6 +17,7 @@
     "@xstate/react": "^1.4.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.15.1",
     "node-sass": "^6.0.1",
+    "patch-package": "^6.4.7",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-scripts": "4.0.3",
@@ -55,7 +56,6 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^3.2.3",
-    "patch-package": "^6.4.7"
+    "gh-pages": "^3.2.3"
   }
 }
