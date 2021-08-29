@@ -1,7 +1,6 @@
 import { MachineConfig, send, assign } from "xstate";
 
-const proxyurl = "https://cors-anywhere.herokuapp.com/";
-const tdmEndpoint = "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"
+const tdmEndpoint = process.env.REACT_APP_TDM_ENDPOINT || "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"
 const tdmSession = {
     "session": {
         "my_frontend": {
@@ -42,7 +41,7 @@ const nlInput = (sessionId: string, hypotheses: Hypothesis[]) => ({
 })
 
 
-const tdmRequest = (requestBody: any) => (fetch(new Request(proxyurl + tdmEndpoint, {
+const tdmRequest = (requestBody: any) => (fetch(new Request(tdmEndpoint, {
     method: 'POST',
     headers: {
         'Content-type': 'application/json'
@@ -50,7 +49,7 @@ const tdmRequest = (requestBody: any) => (fetch(new Request(proxyurl + tdmEndpoi
     body: JSON.stringify(requestBody)
 })).then(data => data.json()))
 
-export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
+export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
     initial: 'init',
     states: {
         init: {

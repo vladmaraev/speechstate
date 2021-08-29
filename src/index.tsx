@@ -5,12 +5,21 @@ import { Machine, assign, actions, State } from "xstate";
 import { useMachine, asEffect } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
 import SpeechRecognition from 'react-speech-recognition';
+import { tdmDmMachine } from "./tdmClient";
+import { jaicpDmMachine } from "./jaicpClient";
+import { dmMachine } from "./dmColourChanger";
 
 import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
 import createPonyfill from 'web-speech-cognitive-services/lib/SpeechServices';
 
-import { dmMachine } from "./tdmClient";
-/* import { dmMachine } from "./dmColourChanger"; */
+let dm = dmMachine
+if (process.env.REACT_APP_BACKEND === 'TDM') {
+    dm = tdmDmMachine
+} else if (process.env.REACT_APP_BACKEND === 'JAICP') {
+    dm = jaicpDmMachine
+}
+
+const { send, cancel } = actions
 
 var myTTS = speechSynthesis;
 var myTTSUtterance = SpeechSynthesisUtterance;
@@ -44,18 +53,16 @@ inspect({
     iframe: false
 });
 
-const { send, cancel } = actions;
 
-const defaultPassivity = 5
+const defaultPassivity = 10
 
 const machine = Machine<SDSContext, any, SDSEvent>({
     id: 'root',
     type: 'parallel',
     states: {
         dm: {
-            ...dmMachine
+            ...dm
         },
-
         asrtts: {
             initial: 'idle',
             states: {
@@ -174,7 +181,7 @@ function App() {
     const startListening = () => {
         SpeechRecognition.startListening({
             continuous: true,
-            language: 'en-US'
+            language: process.env.REACT_APP_ASR_LANGUAGE || 'en-US'
         });
     }
     const stopListening = () => {
@@ -219,7 +226,7 @@ function App() {
     )
 
 
-    const [current, send, service] = useMachine(machine, {
+    const [current, send] = useMachine(machine, {
         devTools: true,
         actions: {
             recStart: asEffect(() => {
@@ -234,9 +241,14 @@ function App() {
             ttsStart: asEffect((context) => {
                 console.log('Speaking...');
                 const voices = myTTS.getVoices();
-                console.log(voices)
+                /* console.log(voices) */
                 const utterance = new myTTSUtterance(context.ttsAgenda);
-                utterance.voice = voices.find(voice => /en-US-AriaNeural/u.test(voice.name))!
+                let voiceRe = RegExp("en-US-AriaNeural", 'u')
+                if (process.env.REACT_APP_TTS_VOICE) {
+                    voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
+                }
+                utterance.voice = voices.find(v => voiceRe.test(v.name))!
+                console.log("Selected voice " + utterance.voice.name)
                 utterance.onend = () => send('ENDSPEECH')
                 myTTS.speak(utterance)
             }),
