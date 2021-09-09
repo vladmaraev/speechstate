@@ -64,8 +64,21 @@ const machine = Machine<SDSContext, any, SDSEvent>({
             ...dm
         },
         asrtts: {
-            initial: 'idle',
+            initial: 'prepare',
             states: {
+                prepare: {
+                    invoke: {
+                        id: "getAuthorizationToken",
+                        src: (_ctx, _evt) => getAuthorizationToken(),
+                        onDone: {
+                            actions: assign((_context, event) => { return { azureAuthorizationToken: event.data } }),
+                            target: 'idle'
+                        },
+                        onError: {
+                            target: 'fail'
+                        }
+                    }
+                },
                 idle: {
                     on: {
                         LISTEN: 'recognising',
@@ -73,7 +86,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                             target: 'speaking',
                             actions: assign((_context, event) => { return { ttsAgenda: event.value } })
                         }
-                    }
+                    },
                 },
                 recognising: {
                     initial: 'noinput',
@@ -115,7 +128,8 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     on: {
                         ENDSPEECH: 'idle',
                     }
-                }
+                },
+                fail: {}
             }
         }
     },
@@ -289,6 +303,12 @@ function App() {
     )
 };
 
+const getAuthorizationToken = () => (fetch(new Request(TOKEN_ENDPOINT, {
+    method: 'POST',
+    headers: {
+        'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY!
+    },
+})).then(data => data.text()))
 
 
 const rootElement = document.getElementById("root");
