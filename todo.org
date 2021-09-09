@@ -2,8 +2,9 @@ GUI:
 - [X] actions, and an action for ending the sessions
 - [X] noinput vs maxspeech
 - [X] confidence level
-- [ ] recognition hypotheses (not a big deal)
-- [ ] problem with silent TTS
+- [X] recognition hypotheses (not a big deal)
+- [ ] problem with silent TTS ??
+- [ ] SSML -- debug. Look at custom NLG.
 
 TDM:
 - [ ] kubernetes for Vlad

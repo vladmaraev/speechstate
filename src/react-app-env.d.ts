@@ -19,6 +19,7 @@ interface SDSContext {
     tdmUtterance: string;
     tdmPassivity: number;
     tdmActions: any;
+    azureAuthorizationToken: string;
 }
 
 type SDSEvent =
