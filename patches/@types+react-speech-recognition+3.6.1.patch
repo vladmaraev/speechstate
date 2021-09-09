@@ -1,5 +1,5 @@
 diff --git a/node_modules/@types/react-speech-recognition/index.d.ts b/node_modules/@types/react-speech-recognition/index.d.ts
-xindex bc8a424..2ec18db 100644
+index 94be43a..c5d807e 100755
 --- a/node_modules/@types/react-speech-recognition/index.d.ts
 +++ b/node_modules/@types/react-speech-recognition/index.d.ts
 @@ -21,8 +21,10 @@ interface SpeechRecognition {
