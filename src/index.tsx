@@ -143,37 +143,54 @@ interface Props extends React.HTMLAttributes<HTMLElement> {
 }
 const ReactiveButton = (props: Props): JSX.Element => {
     switch (true) {
+        case props.state.matches({ asrtts: 'fail' }) || props.state.matches({ dm: 'fail' }):
+            return (
+                <div className="control">
+                    <div className="status">Something went wrong...</div>
+                    <button type="button" className="circle"
+                        style={{}} {...props}>
+                    </button>
+                </div>);
         case props.state.matches({ asrtts: 'recognising' }):
             return (
-                <button type="button" className="glow-on-hover"
-                    style={{ animation: "glowing 20s linear" }} {...props}>
-                    Listening...
-                </button>
+                <div className="control">
+                    <div className="status-talk">talk</div>
+                    <button type="button" className="circle"
+                        style={{ animation: "bordersize 2s infinite" }} {...props}>
+                    </button>
+                </div>
             );
         case props.state.matches({ asrtts: 'speaking' }):
             return (
-                <button type="button" className="glow-on-hover"
-                    style={{ animation: "bordering 1s infinite" }} {...props}>
-                    Speaking...
-                </button>
+                <div className="control">
+                    <div className="status">speaking</div>
+                    <button type="button" className="circle-speaking"
+                        style={{ animation: "bordering 2s infinite" }} {...props}>
+                    </button>
+                </div>
             );
-        case props.state.matches({ dm: 'fail' }):
+
+        case props.state.matches({ dm: 'init' }):
             return (
-                <button type="button" className="glow-on-hover"
-                    {...props}>
-                    FAILURE! reload the page
-                </button>
+                <div className="control" {...props}>
+                    <div className="status-talk">click to start!</div>
+                    <button type="button" className="circle-click"
+                        style={{}}>
+                    </button>
+                </div>
             );
 
         default:
             return (
-                <button type="button" className="glow-on-hover" {...props}>
-                    Click to start
-                </button >
+                <div className="control">
+                    <div className="status-talk"></div>
+                    <button type="button" className="circle"
+                        style={{}} {...props}>
+                    </button>
+                </div>
             );
     }
 }
-
 
 
 function App() {
