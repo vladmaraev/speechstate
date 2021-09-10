@@ -70,12 +70,6 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     initial: 'noinput',
                     entry: 'recStart',
                     exit: 'recStop',
-                    invoke: {
-                        id: 'asrService',
-                        src: (context, _event) => (callback, _onReceive) => {
-
-                        }
-                    },
                     on: {
                         ASRRESULT: {
                             actions: ['recLogResult',
