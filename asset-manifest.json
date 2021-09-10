@@ -1,19 +1,19 @@
 {
   "files": {
-    "main.css": "/static/css/main.a1c811ff.chunk.css",
-    "main.js": "/static/js/main.ca208293.chunk.js",
-    "main.js.map": "/static/js/main.ca208293.chunk.js.map",
-    "runtime-main.js": "/static/js/runtime-main.00f3d108.js",
-    "runtime-main.js.map": "/static/js/runtime-main.00f3d108.js.map",
-    "static/js/2.0593535e.chunk.js": "/static/js/2.0593535e.chunk.js",
-    "static/js/2.0593535e.chunk.js.map": "/static/js/2.0593535e.chunk.js.map",
-    "index.html": "/index.html",
-    "static/css/main.a1c811ff.chunk.css.map": "/static/css/main.a1c811ff.chunk.css.map",
-    "static/js/2.0593535e.chunk.js.LICENSE.txt": "/static/js/2.0593535e.chunk.js.LICENSE.txt"
+    "main.css": "/speechstate/static/css/main.a1c811ff.chunk.css",
+    "main.js": "/speechstate/static/js/main.ca208293.chunk.js",
+    "main.js.map": "/speechstate/static/js/main.ca208293.chunk.js.map",
+    "runtime-main.js": "/speechstate/static/js/runtime-main.3b14f31b.js",
+    "runtime-main.js.map": "/speechstate/static/js/runtime-main.3b14f31b.js.map",
+    "static/js/2.d1ffbe4d.chunk.js": "/speechstate/static/js/2.d1ffbe4d.chunk.js",
+    "static/js/2.d1ffbe4d.chunk.js.map": "/speechstate/static/js/2.d1ffbe4d.chunk.js.map",
+    "index.html": "/speechstate/index.html",
+    "static/css/main.a1c811ff.chunk.css.map": "/speechstate/static/css/main.a1c811ff.chunk.css.map",
+    "static/js/2.d1ffbe4d.chunk.js.LICENSE.txt": "/speechstate/static/js/2.d1ffbe4d.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
-    "static/js/runtime-main.00f3d108.js",
-    "static/js/2.0593535e.chunk.js",
+    "static/js/runtime-main.3b14f31b.js",
+    "static/js/2.d1ffbe4d.chunk.js",
     "static/css/main.a1c811ff.chunk.css",
     "static/js/main.ca208293.chunk.js"
   ]
