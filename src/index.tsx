@@ -21,32 +21,8 @@ if (process.env.REACT_APP_BACKEND === 'TDM') {
 
 const { send, cancel } = actions
 
-var myTTS = speechSynthesis;
-var myTTSUtterance = SpeechSynthesisUtterance;
-
 const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken';
 const REGION = 'northeurope';
-
-(async function() {
-    try {
-        const response = await fetch(TOKEN_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY! }
-        });
-        const authorizationToken = await response.text();
-
-        const ponyfill = await createPonyfill({
-            credentials: {
-                region: REGION,
-                authorizationToken: authorizationToken,
-            }
-        });
-        const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
-        myTTS = speechSynthesis;
-        myTTSUtterance = SpeechSynthesisUtterance;
-    } catch (e) { console.log(e) }
-})();
-
 
 inspect({
     url: "https://statecharts.io/inspect",
@@ -71,7 +47,9 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                         id: "getAuthorizationToken",
                         src: (_ctx, _evt) => getAuthorizationToken(),
                         onDone: {
-                            actions: assign((_context, event) => { return { azureAuthorizationToken: event.data } }),
+                            actions: [
+                                assign((_context, event) => { return { azureAuthorizationToken: event.data } }),
+                                'ponyfillTTS', 'ponyfillASR'],
                             target: 'idle'
                         },
                         onError: {
@@ -92,6 +70,12 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     initial: 'noinput',
                     entry: 'recStart',
                     exit: 'recStop',
+                    invoke: {
+                        id: 'asrService',
+                        src: (context, _event) => (callback, _onReceive) => {
+
+                        }
+                    },
                     on: {
                         ASRRESULT: {
                             actions: ['recLogResult',
@@ -124,10 +108,36 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     }
                 },
                 speaking: {
-                    entry: 'ttsStart',
+                    invoke: {
+                        id: 'ttsStart',
+                        src: (context, _event) => (callback, _onReceive) => {
+                            const utterance = new context.ttsUtterance(context.ttsAgenda);
+                            const voices = context.tts.getVoices();
+                            let voiceRe = RegExp("en-US", 'u')
+                            if (process.env.REACT_APP_TTS_VOICE) {
+                                voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
+                            }
+                            const voice = voices.find(v => voiceRe.test(v.name))!
+                            if (voice) {
+                                utterance.voice = voice
+                                utterance.onend = () => callback('ENDSPEECH')
+                                console.log(`${utterance.voice.name} is speaking`);
+                                context.tts.speak(utterance)
+                            }
+                            else {
+                                console.error(`TTS_ERROR: Could not get voice for regexp ${voiceRe}`)
+                                callback('TTS_ERROR')
+                            }
+                        }
+                    },
                     on: {
                         ENDSPEECH: 'idle',
+                        TTS_ERROR: 'fail'
                     }
+                    /* entry: 'ttsStart',
+                     * on: {
+                     *     ENDSPEECH: 'idle',
+                     * } */
                 },
                 fail: {}
             }
@@ -219,43 +229,6 @@ function App() {
         SpeechRecognition.stopListening()
     }
 
-    React.useEffect(() => {
-        async function fetchASRTTS() {
-            const response = await fetch(TOKEN_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY! }
-            });
-            const authorizationToken = await response.text();
-            const
-                { SpeechRecognition: AzureSpeechRecognition }
-                    = await createSpeechRecognitionPonyfill({
-                        credentials: {
-                            region: REGION,
-                            authorizationToken: authorizationToken,
-                        }
-                    });
-            SpeechRecognition.applyPolyfill(AzureSpeechRecognition)
-            const rec = SpeechRecognition.getRecognition()
-            rec!.onresult = function(event: any) {
-                console.log(event.results)
-                var result = event.results[0]
-                if (result.isFinal) {
-                    send({
-                        type: "ASRRESULT", value:
-                            [{
-                                "utterance": result[0].transcript,
-                                "confidence": result[0].confidence
-                            }]
-                    })
-                } else {
-                    send({ type: "STARTSPEECH" });
-                }
-            }
-        }
-        fetchASRTTS()
-    }, []
-    )
-
 
     const [current, send] = useMachine(machine, {
         devTools: true,
@@ -263,35 +236,65 @@ function App() {
             recStart: asEffect(() => {
                 console.log('Ready to receive a voice input.');
                 startListening()
-                /* speechRecognition.start() */
             }),
             recStop: asEffect(() => {
                 console.log('Recognition stopped.');
                 stopListening()
             }),
             ttsStart: asEffect((context) => {
-                console.log('Speaking...');
-                const voices = myTTS.getVoices();
-                /* console.log(voices) */
-                const utterance = new myTTSUtterance(context.ttsAgenda);
+                const voices = context.tts.getVoices();
+                const utterance = new context.ttsUtterance(context.ttsAgenda);
                 let voiceRe = RegExp("en-US-AriaNeural", 'u')
                 if (process.env.REACT_APP_TTS_VOICE) {
                     voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
                 }
                 utterance.voice = voices.find(v => voiceRe.test(v.name))!
-                console.log("Selected voice " + utterance.voice.name)
+                console.log(`${utterance.voice.name} is speaking`);
                 utterance.onend = () => send('ENDSPEECH')
-                myTTS.speak(utterance)
+                context.tts.speak(utterance)
             }),
             ttsCancel: asEffect(() => {
                 console.log('TTS STOP...');
                 /* cancel() */
                 speechSynthesis.cancel()
+            }),
+            ponyfillTTS: asEffect((context, _event) => {
+                const ponyfill = createPonyfill({
+                    credentials: {
+                        region: REGION,
+                        authorizationToken: context.azureAuthorizationToken,
+                    }
+                });
+                const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
+                context.tts = speechSynthesis
+                context.ttsUtterance = SpeechSynthesisUtterance
+            }),
+            ponyfillASR: asEffect((context, _event) => {
+                const
+                    { SpeechRecognition: AzureSpeechRecognition }
+                        = createSpeechRecognitionPonyfill({
+                            credentials: {
+                                region: REGION,
+                                authorizationToken: context.azureAuthorizationToken,
+                            }
+                        });
+                SpeechRecognition.applyPolyfill(AzureSpeechRecognition)
+                context.asr = SpeechRecognition.getRecognition()!
+                context.asr.onresult = function(event: any) {
+                    var result = event.results[0]
+                    if (result.isFinal) {
+                        send({
+                            type: "ASRRESULT", value:
+                                [{
+                                    "utterance": result[0].transcript,
+                                    "confidence": result[0].confidence
+                                }]
+                        })
+                    } else {
+                        send({ type: "STARTSPEECH" });
+                    }
+                }
             })
-            /* speak: asEffect((context) => {
-             * console.log('Speaking...');
-             *     speak({text: context.ttsAgenda })
-             * } */
         }
     });
 
@@ -303,12 +306,13 @@ function App() {
     )
 };
 
-const getAuthorizationToken = () => (fetch(new Request(TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: {
-        'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY!
-    },
-})).then(data => data.text()))
+const getAuthorizationToken = () => (
+    fetch(new Request(TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Ocp-Apim-Subscription-Key': process.env.REACT_APP_SUBSCRIPTION_KEY!
+        },
+    })).then(data => data.text()))
 
 
 const rootElement = document.getElementById("root");

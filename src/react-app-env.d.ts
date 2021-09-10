@@ -9,7 +9,15 @@ interface Hypothesis {
     "confidence": number
 }
 
+interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
+    new(s: string);
+}
+
 interface SDSContext {
+    asr: AzureSpeechRecognition;
+    tts: SpeechSynthesis;
+    voice: SpeechSynthesisVoice;
+    ttsUtterance: MySpeechSynthesisUtterance;
     recResult: Hypothesis[];
     nluData: any;
     ttsAgenda: string;
@@ -23,6 +31,7 @@ interface SDSContext {
 }
 
 type SDSEvent =
+    | { type: 'TTS_ERROR' }
     | { type: 'CLICK' }
     | { type: 'STARTSPEECH' }
     | { type: 'RECOGNISED' }

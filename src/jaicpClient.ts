@@ -32,7 +32,6 @@ export const jaicpDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                 ttsAgenda: (_ctx, event) => "Привет! Спроси меня что-нибудь."
             }),
             on: {
-
                 CLICK: 'jaicp'
             }
         },
@@ -71,15 +70,15 @@ export const jaicpDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                                 cond: (_ctx, event) => event.data.data.answer !== ""
                             },
                             {
-                                target: 'fail'
+                                target: '#root.dm.fail'
                             }
                         ],
-                        onError: { target: 'fail' }
+                        onError: { target: '#root.dm.fail' }
                     }
 
                 },
-                fail: {}
             },
         },
+        fail: {}
     },
 });
