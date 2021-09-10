@@ -4,7 +4,6 @@ import * as ReactDOM from "react-dom";
 import { Machine, assign, actions, State } from "xstate";
 import { useMachine, asEffect } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
-import SpeechRecognition from 'react-speech-recognition';
 import { tdmDmMachine } from "./tdmClient";
 import { jaicpDmMachine } from "./jaicpClient";
 import { dmMachine } from "./dmColourChanger";
@@ -213,27 +212,27 @@ const ReactiveButton = (props: Props): JSX.Element => {
 
 function App() {
 
-    const startListening = () => {
-        SpeechRecognition.startListening({
-            continuous: true,
-            language: process.env.REACT_APP_ASR_LANGUAGE || 'en-US'
-        });
-    }
-    const stopListening = () => {
-        SpeechRecognition.stopListening()
-    }
+    /* const startListening = () => {
+     *     SpeechRecognition.startListening({
+     *         continuous: true,
+     *         language: process.env.REACT_APP_ASR_LANGUAGE || 'en-US'
+     *     });
+     * }
+     * const stopListening = () => {
+     *     SpeechRecognition.stopListening()
+     * } */
 
 
     const [current, send] = useMachine(machine, {
         devTools: true,
         actions: {
-            recStart: asEffect(() => {
+            recStart: asEffect((context) => {
                 console.log('Ready to receive a voice input.');
-                startListening()
+                context.asr.start()
             }),
-            recStop: asEffect(() => {
+            recStop: asEffect((context) => {
                 console.log('Recognition stopped.');
-                stopListening()
+                context.asr.abort()
             }),
             ttsStart: asEffect((context) => {
                 const voices = context.tts.getVoices();
@@ -265,15 +264,17 @@ function App() {
             }),
             ponyfillASR: asEffect((context, _event) => {
                 const
-                    { SpeechRecognition: AzureSpeechRecognition }
+                    { SpeechRecognition }
                         = createSpeechRecognitionPonyfill({
                             credentials: {
                                 region: REGION,
                                 authorizationToken: context.azureAuthorizationToken,
                             }
                         });
-                SpeechRecognition.applyPolyfill(AzureSpeechRecognition)
-                context.asr = SpeechRecognition.getRecognition()!
+                context.asr = new SpeechRecognition()
+                context.asr.lang = process.env.REACT_APP_ASR_LANGUAGE || 'en-US'
+                context.asr.continuous = true
+                context.asr.interimResults = true
                 context.asr.onresult = function(event: any) {
                     var result = event.results[0]
                     if (result.isFinal) {
@@ -288,6 +289,7 @@ function App() {
                         send({ type: "STARTSPEECH" });
                     }
                 }
+
             })
         }
     });
@@ -313,5 +315,4 @@ const rootElement = document.getElementById("root");
 ReactDOM.render(
     <App />,
     rootElement);
-
 

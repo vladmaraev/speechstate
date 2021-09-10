@@ -13,8 +13,12 @@ interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
     new(s: string);
 }
 
+interface MySpeechRecognition extends SpeechRecognition {
+    new(s: string);
+}
+
 interface SDSContext {
-    asr: AzureSpeechRecognition;
+    asr: SpeechRecognition;
     tts: SpeechSynthesis;
     voice: SpeechSynthesisVoice;
     ttsUtterance: MySpeechSynthesisUtterance;
