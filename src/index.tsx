@@ -9,7 +9,7 @@ import { jaicpDmMachine } from "./jaicpClient";
 import { dmMachine } from "./dmColourChanger";
 
 import createSpeechRecognitionPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText'
-import createPonyfill from 'web-speech-cognitive-services/lib/SpeechServices';
+import createSpeechSynthesisPonyfill from 'web-speech-cognitive-services/lib/SpeechServices/TextToSpeech';
 
 let dm = dmMachine
 if (process.env.REACT_APP_BACKEND === 'TDM') {
@@ -39,21 +39,57 @@ const machine = Machine<SDSContext, any, SDSEvent>({
             ...dm
         },
         asrtts: {
-            initial: 'prepare',
+            initial: 'getToken',
             states: {
-                prepare: {
+                getToken: {
                     invoke: {
                         id: "getAuthorizationToken",
                         src: (_ctx, _evt) => getAuthorizationToken(),
                         onDone: {
                             actions: [
                                 assign((_context, event) => { return { azureAuthorizationToken: event.data } }),
-                                'ponyfillTTS', 'ponyfillASR'],
-                            target: 'idle'
+                                'ponyfillASR'],
+                            target: 'ponyfillTTS'
                         },
                         onError: {
                             target: 'fail'
                         }
+                    }
+                },
+                ponyfillTTS: {
+                    invoke: {
+                        id: 'ponyTTS',
+                        src: (context, _event) => (callback, _onReceive) => {
+                            const ponyfill = createSpeechSynthesisPonyfill({
+                                credentials: {
+                                    region: REGION,
+                                    authorizationToken: context.azureAuthorizationToken,
+                                }
+                            });
+                            const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
+                            context.tts = speechSynthesis
+                            context.ttsUtterance = SpeechSynthesisUtterance
+                            context.tts.addEventListener('voiceschanged', () => {
+                                context.tts.cancel()
+                                const voices = context.tts.getVoices();
+                                let voiceRe = RegExp("en-US", 'u')
+                                if (process.env.REACT_APP_TTS_VOICE) {
+                                    voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
+                                }
+                                const voice = voices.find((v: any) => voiceRe.test(v.name))!
+                                if (voice) {
+                                    context.voice = voice
+                                    callback('TTS_READY')
+                                } else {
+                                    console.error(`TTS_ERROR: Could not get voice for regexp ${voiceRe}`)
+                                    callback('TTS_ERROR')
+                                }
+                            })
+                        }
+                    },
+                    on: {
+                        TTS_READY: 'idle',
+                        TTS_ERROR: 'fail'
                     }
                 },
                 idle: {
@@ -101,36 +137,10 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     }
                 },
                 speaking: {
-                    invoke: {
-                        id: 'ttsStart',
-                        src: (context, _event) => (callback, _onReceive) => {
-                            const utterance = new context.ttsUtterance(context.ttsAgenda);
-                            const voices = context.tts.getVoices();
-                            let voiceRe = RegExp("en-US", 'u')
-                            if (process.env.REACT_APP_TTS_VOICE) {
-                                voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
-                            }
-                            const voice = voices.find(v => voiceRe.test(v.name))!
-                            if (voice) {
-                                utterance.voice = voice
-                                utterance.onend = () => callback('ENDSPEECH')
-                                console.log(`${utterance.voice.name} is speaking`);
-                                context.tts.speak(utterance)
-                            }
-                            else {
-                                console.error(`TTS_ERROR: Could not get voice for regexp ${voiceRe}`)
-                                callback('TTS_ERROR')
-                            }
-                        }
-                    },
+                    entry: 'ttsStart',
                     on: {
                         ENDSPEECH: 'idle',
-                        TTS_ERROR: 'fail'
                     }
-                    /* entry: 'ttsStart',
-                     * on: {
-                     *     ENDSPEECH: 'idle',
-                     * } */
                 },
                 fail: {}
             }
@@ -211,18 +221,6 @@ const ReactiveButton = (props: Props): JSX.Element => {
 
 
 function App() {
-
-    /* const startListening = () => {
-     *     SpeechRecognition.startListening({
-     *         continuous: true,
-     *         language: process.env.REACT_APP_ASR_LANGUAGE || 'en-US'
-     *     });
-     * }
-     * const stopListening = () => {
-     *     SpeechRecognition.stopListening()
-     * } */
-
-
     const [current, send] = useMachine(machine, {
         devTools: true,
         actions: {
@@ -235,14 +233,8 @@ function App() {
                 context.asr.abort()
             }),
             ttsStart: asEffect((context) => {
-                const voices = context.tts.getVoices();
                 const utterance = new context.ttsUtterance(context.ttsAgenda);
-                let voiceRe = RegExp("en-US-AriaNeural", 'u')
-                if (process.env.REACT_APP_TTS_VOICE) {
-                    voiceRe = RegExp(process.env.REACT_APP_TTS_VOICE, 'u')
-                }
-                utterance.voice = voices.find(v => voiceRe.test(v.name))!
-                console.log(`${utterance.voice.name} is speaking`);
+                utterance.voice = context.voice
                 utterance.onend = () => send('ENDSPEECH')
                 context.tts.speak(utterance)
             }),
@@ -250,17 +242,6 @@ function App() {
                 console.log('TTS STOP...');
                 /* cancel() */
                 speechSynthesis.cancel()
-            }),
-            ponyfillTTS: asEffect((context, _event) => {
-                const ponyfill = createPonyfill({
-                    credentials: {
-                        region: REGION,
-                        authorizationToken: context.azureAuthorizationToken,
-                    }
-                });
-                const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
-                context.tts = speechSynthesis
-                context.ttsUtterance = SpeechSynthesisUtterance
             }),
             ponyfillASR: asEffect((context, _event) => {
                 const
@@ -315,4 +296,3 @@ const rootElement = document.getElementById("root");
 ReactDOM.render(
     <App />,
     rootElement);
-

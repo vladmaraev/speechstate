@@ -1,7 +1,7 @@
 /// <reference types="react-scripts" />
 
 declare module 'react-speech-kit';
-declare module 'web-speech-cognitive-services/lib/SpeechServices';
+declare module 'web-speech-cognitive-services/lib/SpeechServices/TextToSpeech';
 declare module 'web-speech-cognitive-services/lib/SpeechServices/SpeechToText';
 
 interface Hypothesis {
@@ -19,7 +19,7 @@ interface MySpeechRecognition extends SpeechRecognition {
 
 interface SDSContext {
     asr: SpeechRecognition;
-    tts: SpeechSynthesis;
+    tts: speechSynthesis;
     voice: SpeechSynthesisVoice;
     ttsUtterance: MySpeechSynthesisUtterance;
     recResult: Hypothesis[];
@@ -35,6 +35,7 @@ interface SDSContext {
 }
 
 type SDSEvent =
+    | { type: 'TTS_READY' }
     | { type: 'TTS_ERROR' }
     | { type: 'CLICK' }
     | { type: 'STARTSPEECH' }
