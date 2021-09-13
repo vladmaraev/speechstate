@@ -181,7 +181,7 @@ const ReactiveButton = (props: Props): JSX.Element => {
         case props.state.matches({ asrtts: 'recognising' }):
             return (
                 <div className="control">
-                    <div className="status-talk">talk</div>
+                    <div className="status-talk">say or select</div>
                     <button type="button" className="circle"
                         style={{ animation: "bordersize 2s infinite" }} {...props}>
                     </button>
@@ -279,6 +279,28 @@ function App() {
     return (
         <div className="App">
             <ReactiveButton state={current} onClick={() => send('CLICK')} />
+            <div className="select-wrapper">
+                <div className="select">
+                    <figure className="flex">
+                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
+                        <figcaption>Grötbröd</figcaption>
+                    </figure>
+                    <figure className="flex">
+                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
+                        <figcaption>Grötbröd</figcaption>
+                    </figure>
+                    <figure className="flex">
+                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
+                        <figcaption>Grötbröd</figcaption>
+                    </figure>                    <figure className="flex">
+                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
+                        <figcaption>Grötbröd</figcaption>
+                    </figure>                    <figure className="flex">
+                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
+                        <figcaption>Grötbröd</figcaption>
+                    </figure>
+                </div>
+            </div>
         </div>
     )
 };

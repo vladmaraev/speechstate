@@ -1,6 +1,7 @@
 $yel: hsla(77, 100%, 77%, 1);
-$pnk: #DD9990;
+$pnk: hsla(25, 100%, 77%, 0.7);
 $rd: #CD1515;
+$mono: IBM Plex Mono, monospace;
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@1,300;1,700&display=swap');
 * {
@@ -13,7 +14,7 @@ html, body {
 }
 
 .App {
-  font-family: sans-serif;
+  font-family: $mono;
   text-align: center;
     margin: 0;
     padding: 0;
@@ -73,31 +74,44 @@ html, body {
     z-index: 1;
     &-talk {
 	@extend .status;
-        font-weight: bold;
     }
-
 }
 
 
-.glow-on-hover {
-    width: 220px;
-    height: 50px;
+.select-wrapper {
+    margin-left: 20px;
+    margin-right: 20px;
+    top: 24vh;
+    position: absolute;
+    // display: none;
+}
+.select {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    // border: 1px dotted red;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: space-around;
+    justify-content: flex-start;
+}
+.flex {
+    // border: 1px solid #ddd;
+    margin: 0.5em;
+    padding: 0.5em;
+    flex: 0 1 25%;
     cursor: pointer;
-    position: relative;
-    z-index: 0;
-    border-radius: 10px;
-    content: '';
-    background: linear-gradient(45deg,  #002bff, #7a00ff, #ff00c8, #ff0000, #ff7300, #ff00c8, #7a00ff, #002bff,);
-    top: -2px;
-    left:-2px;
-    background-size: 400%;
-    opacity: 1;
-    color: #fff;
-    font-size: 2rem;
-    border: none;
-    outline: none;
+    border-radius: 5px;
 }
+.flex:hover {
+    background: $yel;
+}
+img {
+    object-fit: contain;
+    width: 100%;
+    border-radius: 5px;
 
+}
 
 @keyframes glowing {
     0% { background-position: 0 0; }
@@ -107,13 +121,13 @@ html, body {
 
 @keyframes bordering {
   0% { box-shadow: 0 0 0px $yel; }
-  50% { box-shadow: 0 0 0px 12vh $yel; }
+  50% { box-shadow: 0 0 6px 12vh $yel; }
   100% { box-shadow: 0 0 0px $yel; }
 }
 
 @keyframes bordersize {
     0% { box-shadow:  0 0 0px #fff; }
-    50% {box-shadow:  0 0 0px 12vh #fff; }
+    50% {box-shadow:  0 0 6px 12vh #fff; }
     100% { box-shadow:  0 0 0px #fff;}
 }
 
