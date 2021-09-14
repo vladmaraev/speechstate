@@ -103,7 +103,6 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                 },
                 recognising: {
                     initial: 'noinput',
-                    entry: 'recStart',
                     exit: 'recStop',
                     on: {
                         ASRRESULT: {
@@ -116,13 +115,16 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                             target: '.match'
                         },
                         RECOGNISED: 'idle',
+                        CLICK: '.pause'
                     },
                     states: {
                         noinput: {
-                            entry: send(
-                                { type: 'TIMEOUT' },
-                                { delay: (context) => (1000 * (defaultPassivity || context.tdmPassivity)), id: 'timeout' }
-                            ),
+                            entry: [
+                                'recStart',
+                                send(
+                                    { type: 'TIMEOUT' },
+                                    { delay: (context) => (1000 * (defaultPassivity || context.tdmPassivity)), id: 'timeout' }
+                                )],
                             on: {
                                 TIMEOUT: '#root.asrtts.idle',
                                 STARTSPEECH: 'inprogress'
@@ -134,6 +136,10 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                         match: {
                             entry: send('RECOGNISED'),
                         },
+                        pause: {
+                            entry: 'recStop',
+                            on: { CLICK: 'noinput' }
+                        }
                     }
                 },
                 speaking: {
@@ -178,10 +184,19 @@ const ReactiveButton = (props: Props): JSX.Element => {
                         style={{}} {...props}>
                     </button>
                 </div>);
+        case props.state.matches({ asrtts: { recognising: 'pause' } }):
+            return (
+                <div className="control">
+                    <div className="status-talk">click to continue</div>
+                    <button type="button" className="circle"
+                        style={{}} {...props}>
+                    </button>
+                </div>
+            );
         case props.state.matches({ asrtts: 'recognising' }):
             return (
                 <div className="control">
-                    <div className="status-talk">say or select</div>
+                    <div className="status-talk">listening</div>
                     <button type="button" className="circle"
                         style={{ animation: "bordersize 2s infinite" }} {...props}>
                     </button>
@@ -190,7 +205,7 @@ const ReactiveButton = (props: Props): JSX.Element => {
         case props.state.matches({ asrtts: 'speaking' }):
             return (
                 <div className="control">
-                    <div className="status">speaking</div>
+                    <div className="status">speaking...</div>
                     <button type="button" className="circle-speaking"
                         style={{ animation: "bordering 2s infinite" }} {...props}>
                     </button>
@@ -226,6 +241,7 @@ function App() {
         actions: {
             recStart: asEffect((context) => {
                 console.log('Ready to receive a voice input.');
+                console.log(context)
                 context.asr.start()
             }),
             recStop: asEffect((context) => {

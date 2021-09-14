@@ -31,6 +31,8 @@ interface SDSContext {
     tdmUtterance: string;
     tdmPassivity: number;
     tdmActions: any;
+    tdmVisualOutputInfo: any;
+    tdmExpectedAlternatives: any;
     azureAuthorizationToken: string;
 }
 

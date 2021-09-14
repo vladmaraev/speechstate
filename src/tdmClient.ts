@@ -1,4 +1,4 @@
-import { MachineConfig, send, assign } from "xstate";
+import { MachineConfig, send, assign, AssignAction } from "xstate";
 
 const tdmEndpoint = process.env.REACT_APP_TDM_ENDPOINT || "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"
 const tdmSession = {
@@ -49,6 +49,15 @@ const tdmRequest = (requestBody: any) => (fetch(new Request(tdmEndpoint, {
     body: JSON.stringify(requestBody)
 })).then(data => data.json()))
 
+const tdmAssign: AssignAction<SDSContext, any> = assign({
+    sessionId: (_ctx, event) => event.data.session.session_id,
+    tdmUtterance: (_ctx, event) => event.data.output.utterance,
+    tdmVisualOutputInfo: (_ctx, event) => (event.data.output.visual_output || [{}])[0].visual_information,
+    tdmExpectedAlternatives: (_ctx, event) => (event.data.context.expected_input || {}).alternatives,
+    tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
+    tdmActions: (_ctx, event) => event.data.output.actions,
+})
+
 export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
     initial: 'init',
     states: {
@@ -67,12 +76,7 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                         onDone: [
                             {
                                 target: 'utter',
-                                actions: assign({
-                                    sessionId: (_ctx, event) => event.data.session.session_id,
-                                    tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                    tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                    tdmActions: (_ctx, event) => event.data.output.actions,
-                                }),
+                                actions: tdmAssign,
                                 cond: (_ctx, event) => event.data.output
                             },
                             {
@@ -120,12 +124,7 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                         onDone: [
                             {
                                 target: 'utter',
-                                actions:
-                                    assign({
-                                        tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                        tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                        tdmActions: (_ctx, event) => event.data.output.actions,
-                                    }),
+                                actions: tdmAssign,
                                 cond: (_ctx, event) => event.data.output
                             },
                             {
@@ -143,11 +142,7 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                         onDone: [
                             {
                                 target: 'utter',
-                                actions: assign({
-                                    tdmUtterance: (_ctx, event) => event.data.output.utterance,
-                                    tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
-                                    tdmActions: (_ctx, event) => event.data.output.actions,
-                                }),
+                                actions: tdmAssign,
                                 cond: (_ctx, event) => event.data.output
                             },
                             {
