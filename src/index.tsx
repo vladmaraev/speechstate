@@ -162,7 +162,10 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                     entry: 'ttsStart',
                     on: {
                         ENDSPEECH: 'idle',
-                    }
+                        SELECT: 'idle',
+                        CLICK: { target: 'idle', actions: send('ENDSPEECH') }
+                    },
+                    exit: 'ttsStop',
                 },
                 fail: {}
             }
@@ -249,7 +252,7 @@ const ReactiveButton = (props: Props): JSX.Element => {
                 <div className="control">
                     <div className="status-talk"></div>
                     <button type="button" className="circle"
-                        style={{}} {...props}>
+                        style={{ background: "#fff" }} {...props}>
                     </button>
                 </div>
             );
@@ -287,10 +290,10 @@ function App() {
                 utterance.onend = () => send('ENDSPEECH')
                 context.tts.speak(utterance)
             }),
-            ttsCancel: asEffect(() => {
+            ttsStop: asEffect((context) => {
                 console.log('TTS STOP...');
                 /* cancel() */
-                speechSynthesis.cancel()
+                context.tts.cancel()
             }),
             ponyfillASR: asEffect((context, _event) => {
                 const
