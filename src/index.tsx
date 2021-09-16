@@ -203,17 +203,23 @@ const ReactiveButton = (props: Props): JSX.Element => {
                 </div>);
         case props.state.matches({ asrtts: { recognising: 'pause' } }):
             return (
-                <div className="control">
+                <div className="control" {...props}>
                     <div className="status-talk">click to continue</div>
                     <button type="button" className="circle"
-                        style={{}} {...props}>
+                        style={{}}>
                     </button>
                 </div>
             );
         case props.state.matches({ asrtts: 'recognising' }):
+            const visualOutput = props.state.context.tdmVisualOutputInfo || []
             return (
                 <div className="control">
-                    <div className="status-talk">listening</div>
+                    <div className="status-talk">
+                        {
+                            (visualOutput.find(
+                                (el: any) => el.attribute === "text") || { value: "listening..." }).value
+                        }
+                    </div>
                     <button type="button" className="circle"
                         style={{ animation: "bordersize 2s infinite" }} {...props}>
                     </button>
