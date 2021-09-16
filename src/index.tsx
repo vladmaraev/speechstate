@@ -18,6 +18,7 @@ if (process.env.REACT_APP_BACKEND === 'TDM') {
     dm = jaicpDmMachine
 }
 
+
 const { send, cancel } = actions
 
 const TOKEN_ENDPOINT = 'https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken';
@@ -38,6 +39,20 @@ const machine = Machine<SDSContext, any, SDSEvent>({
         dm: {
             ...dm
         },
+
+        gui: {
+            initial: 'micOnly',
+
+            states: {
+                micOnly: {
+                    on: { SHOW_PICTURES: 'pictureList' },
+                },
+                pictureList: {
+                    on: { SELECT: 'micOnly' },
+                }
+            }
+        },
+
         asrtts: {
             initial: 'getToken',
             states: {
@@ -115,6 +130,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                             target: '.match'
                         },
                         RECOGNISED: 'idle',
+                        SELECT: 'idle',
                         CLICK: '.pause'
                     },
                     states: {
@@ -173,6 +189,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
 
 interface Props extends React.HTMLAttributes<HTMLElement> {
     state: State<SDSContext, any, any, any>;
+    alternative: any;
 }
 const ReactiveButton = (props: Props): JSX.Element => {
     switch (true) {
@@ -211,7 +228,6 @@ const ReactiveButton = (props: Props): JSX.Element => {
                     </button>
                 </div>
             );
-
         case props.state.matches({ dm: 'init' }):
             return (
                 <div className="control" {...props}>
@@ -234,6 +250,18 @@ const ReactiveButton = (props: Props): JSX.Element => {
     }
 }
 
+const FigureButton = (props: Props): JSX.Element => {
+    console.log(props)
+    const caption = props.alternative.find((el: any) => el.attribute === "name").value
+    const imageSrc = (props.alternative.find((el: any) => el.attribute === "image") || {}).value
+    return (
+        <figure className="flex" {...props}>
+            {imageSrc &&
+                <img src={imageSrc} alt={caption} />}
+            <figcaption>{caption}</figcaption>
+        </figure>
+    )
+}
 
 function App() {
     const [current, send] = useMachine(machine, {
@@ -241,7 +269,6 @@ function App() {
         actions: {
             recStart: asEffect((context) => {
                 console.log('Ready to receive a voice input.');
-                console.log(context)
                 context.asr.start()
             }),
             recStop: asEffect((context) => {
@@ -290,35 +317,35 @@ function App() {
             })
         }
     });
+    const figureButtons = (current.context.tdmExpectedAlternatives || []).filter((o: any) => o.visual_information)
+        .map(
+            (o: any, i: any) => (
+                <FigureButton state={current}
+                    alternative={o.visual_information}
+                    key={i}
+                    onClick={() => send({ type: 'SELECT', value: o.semantic_expression })} />
+            )
+        )
 
-
-    return (
-        <div className="App">
-            <ReactiveButton state={current} onClick={() => send('CLICK')} />
-            <div className="select-wrapper">
-                <div className="select">
-                    <figure className="flex">
-                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
-                        <figcaption>Grötbröd</figcaption>
-                    </figure>
-                    <figure className="flex">
-                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
-                        <figcaption>Grötbröd</figcaption>
-                    </figure>
-                    <figure className="flex">
-                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
-                        <figcaption>Grötbröd</figcaption>
-                    </figure>                    <figure className="flex">
-                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
-                        <figcaption>Grötbröd</figcaption>
-                    </figure>                    <figure className="flex">
-                        <img src="https://res.cloudinary.com/coopsverige/image/upload/fl_clip,fl_progressive,q_90,c_lpad,g_center,h_660,w_660/v1591611329/401066.jpg" />
-                        <figcaption>Grötbröd</figcaption>
-                    </figure>
+    if (current.matches({ gui: 'pictureList' })) {
+        return (
+            <div className="App">
+                <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
+                <div className="select-wrapper">
+                    <div className="select">
+                        {figureButtons}
+                    </div>
                 </div>
             </div>
-        </div>
-    )
+        )
+    } else {
+        return (
+            <div className="App">
+                <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
+            </div>
+        )
+    }
+
 };
 
 const getAuthorizationToken = () => (

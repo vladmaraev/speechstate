@@ -1,4 +1,7 @@
-import { MachineConfig, send, assign, AssignAction } from "xstate";
+import { MachineConfig, actions, AssignAction } from "xstate";
+
+const { send, assign, choose } = actions;
+
 
 const tdmEndpoint = process.env.REACT_APP_TDM_ENDPOINT || "https://sourdough-for-dummies-orchestration-pipeline.eu2.ddd.tala.cloud/interact"
 const tdmSession = {
@@ -40,6 +43,22 @@ const nlInput = (sessionId: string, hypotheses: Hypothesis[]) => ({
     }
 })
 
+const hapticInput = (sessionId: string, expression: string) => ({
+    "version": "3.3",
+    "session": { "session_id": sessionId },
+    "request": {
+        "semantic_input": {
+            "interpretations": [{
+                "modality": "haptic",
+                "moves": [{
+                    "perception_confidence": 1,
+                    "understanding_confidence": 1,
+                    "semantic_expression": expression
+                }]
+            }]
+        }
+    }
+})
 
 const tdmRequest = (requestBody: any) => (fetch(new Request(tdmEndpoint, {
     method: 'POST',
@@ -57,6 +76,14 @@ const tdmAssign: AssignAction<SDSContext, any> = assign({
     tdmPassivity: (_ctx, event) => event.data.output.expected_passivity,
     tdmActions: (_ctx, event) => event.data.output.actions,
 })
+
+
+const maybeAlternatives = choose<SDSContext, SDSEvent>([
+    {
+        cond: (context) => { return (context.tdmExpectedAlternatives || [{}])[0].visual_information },
+        actions: [send({ type: "SHOW_PICTURES" })]
+    },
+])
 
 export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
     initial: 'init',
@@ -90,13 +117,19 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                     initial: 'prompt',
                     on: {
                         RECOGNISED: 'next',
+                        SELECT: {
+                            target: 'nextHaptic',
+                            actions: assign({ hapticInput: (_ctx, event) => event.value })
+                        },
                         TIMEOUT: 'passivity'
                     },
                     states: {
                         prompt: {
-                            entry: send((context: SDSContext) => ({
-                                type: "SPEAK", value: context.tdmUtterance
-                            })),
+                            entry: [
+                                maybeAlternatives,
+                                send((context: SDSContext) => ({
+                                    type: "SPEAK", value: context.tdmUtterance
+                                }))],
                             on: {
                                 ENDSPEECH:
                                     [
@@ -110,10 +143,7 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                             }
                         },
                         ask: {
-                            entry: [
-                                send('LISTEN'),
-
-                            ],
+                            entry: send('LISTEN')
                         },
                     }
                 },
@@ -133,7 +163,23 @@ export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
                         ],
                         onError: { target: 'fail' }
                     }
-
+                },
+                nextHaptic: {
+                    invoke: {
+                        id: "hapticInput",
+                        src: (context, _evt) => tdmRequest(hapticInput(context.sessionId, context.hapticInput)),
+                        onDone: [
+                            {
+                                target: 'utter',
+                                actions: tdmAssign,
+                                cond: (_ctx, event) => event.data.output
+                            },
+                            {
+                                target: 'fail'
+                            }
+                        ],
+                        onError: { target: 'fail' }
+                    }
                 },
                 passivity: {
                     invoke: {

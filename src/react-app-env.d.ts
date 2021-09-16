@@ -23,6 +23,7 @@ interface SDSContext {
     voice: SpeechSynthesisVoice;
     ttsUtterance: MySpeechSynthesisUtterance;
     recResult: Hypothesis[];
+    hapticInput: string;
     nluData: any;
     ttsAgenda: string;
     query: string;
@@ -40,6 +41,8 @@ type SDSEvent =
     | { type: 'TTS_READY' }
     | { type: 'TTS_ERROR' }
     | { type: 'CLICK' }
+    | { type: 'SELECT', value: any }
+    | { type: 'SHOW_PICTURES' }
     | { type: 'STARTSPEECH' }
     | { type: 'RECOGNISED' }
     | { type: 'ASRRESULT', value: Hypothesis[] }

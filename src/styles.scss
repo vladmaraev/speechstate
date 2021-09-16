@@ -2,6 +2,7 @@ $yel: hsla(77, 100%, 77%, 1);
 $pnk: hsla(25, 100%, 77%, 0.7);
 $rd: #CD1515;
 $mono: IBM Plex Mono, monospace;
+$dark: #063746;
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@1,300;1,700&display=swap');
 * {
@@ -70,7 +71,7 @@ html, body {
     line-height: px;
     text-indent: 10px;
     text-align: left;
-    color: #063746;
+    color: $dark;
     z-index: 1;
     &-talk {
 	@extend .status;
@@ -98,10 +99,12 @@ html, body {
 .flex {
     // border: 1px solid #ddd;
     margin: 0.5em;
-    padding: 0.5em;
-    flex: 0 1 25%;
+    padding: 1em;
+    flex-basis: 20vw;
     cursor: pointer;
     border-radius: 5px;
+    background: #fff;
+    border: 2px solid $dark;
 }
 .flex:hover {
     background: $yel;
