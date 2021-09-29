@@ -29,6 +29,7 @@ interface SDSContext {
     query: string;
     snippet: string;
     sessionId: string;
+    tdmAll: any;
     tdmUtterance: string;
     tdmPassivity: number;
     tdmActions: any;
@@ -42,7 +43,7 @@ type SDSEvent =
     | { type: 'TTS_ERROR' }
     | { type: 'CLICK' }
     | { type: 'SELECT', value: any }
-    | { type: 'SHOW_PICTURES' }
+    | { type: 'SHOW_ALTERNATIVES' }
     | { type: 'STARTSPEECH' }
     | { type: 'RECOGNISED' }
     | { type: 'ASRRESULT', value: Hypothesis[] }

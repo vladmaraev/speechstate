@@ -42,12 +42,11 @@ const machine = Machine<SDSContext, any, SDSEvent>({
 
         gui: {
             initial: 'micOnly',
-
             states: {
                 micOnly: {
-                    on: { SHOW_PICTURES: 'pictureList' },
+                    on: { SHOW_ALTERNATIVES: 'showAlternatives' },
                 },
-                pictureList: {
+                showAlternatives: {
                     on: { SELECT: 'micOnly' },
                 }
             }
@@ -285,6 +284,7 @@ function App() {
                 context.asr.abort()
             }),
             ttsStart: asEffect((context) => {
+                console.log(context)
                 const utterance = new context.ttsUtterance(context.ttsAgenda);
                 utterance.voice = context.voice
                 utterance.onend = () => send('ENDSPEECH')
@@ -336,23 +336,24 @@ function App() {
             )
         )
 
-    if (current.matches({ gui: 'pictureList' })) {
-        return (
-            <div className="App">
-                <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
-                <div className="select-wrapper">
-                    <div className="select">
-                        {figureButtons}
+    switch (true) {
+        case current.matches({ gui: 'showAlternatives' }):
+            return (
+                <div className="App">
+                    <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
+                    <div className="select-wrapper">
+                        <div className="select">
+                            {figureButtons}
+                        </div>
                     </div>
                 </div>
-            </div>
-        )
-    } else {
-        return (
-            <div className="App">
-                <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
-            </div>
-        )
+            )
+        default:
+            return (
+                <div className="App">
+                    <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
+                </div>
+            )
     }
 
 };

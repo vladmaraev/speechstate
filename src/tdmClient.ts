@@ -70,6 +70,7 @@ const tdmRequest = (requestBody: any) => (fetch(new Request(tdmEndpoint, {
 
 const tdmAssign: AssignAction<SDSContext, any> = assign({
     sessionId: (_ctx, event) => event.data.session.session_id,
+    tdmAll: (_ctx, event) => event.data,
     tdmUtterance: (_ctx, event) => event.data.output.utterance,
     tdmVisualOutputInfo: (_ctx, event) => (event.data.output.visual_output || [{}])[0].visual_information,
     tdmExpectedAlternatives: (_ctx, event) => (event.data.context.expected_input || {}).alternatives,
@@ -81,7 +82,7 @@ const tdmAssign: AssignAction<SDSContext, any> = assign({
 const maybeAlternatives = choose<SDSContext, SDSEvent>([
     {
         cond: (context) => { return (context.tdmExpectedAlternatives || [{}])[0].visual_information },
-        actions: [send({ type: "SHOW_PICTURES" })]
+        actions: [send({ type: "SHOW_ALTERNATIVES" })]
     },
 ])
 
