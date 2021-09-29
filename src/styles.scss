@@ -24,65 +24,76 @@ html, body {
     background: $pnk;
 }
 
-
 .control {
+    position: relative;
+    height: 40vh;
     cursor: pointer;
+    display: flex;
+    flex-flow: row wrap;
     &:hover .circle-click  {
 	background: $yel;
     }
+    .prompt  {
+	padding: 10px 45px;
+	text-align: left;
+    }
+    .circle {
+	position: absolute;
+	width: 80px;
+	height: 80px;
+	left: -40px;
+	border-radius: 50px;
+	cursor: pointer;
+	border: 0;
+	background-color: #CD1515;
+	z-index: 0;
+	&-click {
+	    @extend .circle;
+	    border: 0px;
+	    background-color: #fff;
+	}
+	&-speaking {
+	    @extend .circle;
+	    border: 0px;
+	    background-color: #fff;
+	    animation: bordering 2s infinite;
+	}
+	&-recognising {
+	    @extend .circle;
+	    animation: bordersize 2s infinite;
+	}
+    }
+    .status {
+	// border: 1px solid #fff;
+	position: absolute;
+	bottom: 0;
+	padding-left: 45px;
+	padding-right: 20px;
+	width: 100vw;
+	font-family: IBM Plex Mono, monospace;
+	font-style: italic;
+	font-weight: bold;
+	font-size: 3vh;
+	text-align: left;
+	color: $dark;
+	z-index: 1;
+	&-talk {
+	    @extend .status;
+	}
+	.status-text {
+	    z-index: 5;
+	    position: relative;
+	    white-space: normal;
+	}
+    }
 }
 
-.circle {
-    width: 80px;
-    height: 80px;
-    position: absolute;
-    left: -40px;
-    right: 96.25%;
-    top: 12vh;
-    border-radius: 50px;
-    cursor: pointer;
-    border: 0;
-    background-color: #CD1515;
-    &-click {
-	@extend .circle;
-	border: 0px;
-	background-color: #fff;
-    }
-    &-speaking {
-	@extend .circle;
-	border: 0px;
-	background-color: #fff;
-    }
-}
-
-
-
-.status {
-    // border: 1px solid #fff;
-    position: absolute;
-    width: 100vw;
-    left: 20px;
-    right: 96.25%;
-    top: 6vh;
-    font-family: IBM Plex Mono, monospace;
-    font-style: italic;
-    font-weight: light;
-    font-size: 5vh;
-    line-height: px;
-    text-indent: 10px;
-    text-align: left;
-    color: $dark;
-    z-index: 1;
-    &-talk {
-	@extend .status;
-    }
-}
 
 
 .select-wrapper {
-    margin-left: 20px;
+    margin-left: 40px;
     margin-right: 20px;
-    top: 24vh;
+    top: 45vh;
     position: absolute;
     // display: none;
 }
@@ -96,6 +107,8 @@ html, body {
     align-items: space-around;
     justify-content: flex-start;
 }
+
+
 .flex {
     // border: 1px solid #ddd;
     margin: 0.5em;
@@ -123,15 +136,15 @@ img {
 }
 
 @keyframes bordering {
-  0% { box-shadow: 0 0 0px $yel; }
-  50% { box-shadow: 0 0 6px 12vh $yel; }
-  100% { box-shadow: 0 0 0px $yel; }
+  0% { box-shadow: 0 0 0px hsla(77, 100%, 77%, 0.5); }
+  50% { box-shadow: 0 0 0px 8vh hsla(77, 100%, 77%, 0.9); }
+  100% { box-shadow: 0 0 0px hsla(77, 100%, 77%, 0.5); }
 }
 
 @keyframes bordersize {
-    0% { box-shadow:  0 0 0px #fff; }
-    50% {box-shadow:  0 0 6px 12vh #fff; }
-    100% { box-shadow:  0 0 0px #fff;}
+    0% { box-shadow:  0 0 0px rgba(255, 255, 255, 0.5); }
+    50% {box-shadow:  0 0 0px 8vh rgba(255, 255, 255, 0.9);; }
+    100% { box-shadow:  0 0 0px rgba(255, 255, 255, 0.5);;}
 }
 
 [data-xstate] {

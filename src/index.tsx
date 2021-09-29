@@ -194,68 +194,48 @@ interface Props extends React.HTMLAttributes<HTMLElement> {
     alternative: any;
 }
 const ReactiveButton = (props: Props): JSX.Element => {
+    var promptText = ((props.state.context.tdmVisualOutputInfo || [{}])
+        .find((el: any) => el.attribute === "name") || {}).value;
+    var promptImage = ((props.state.context.tdmVisualOutputInfo || [{}])
+        .find((el: any) => el.attribute === "image") || {}).value;
+    var circleClass = "circle"
     switch (true) {
         case props.state.matches({ asrtts: 'fail' }) || props.state.matches({ dm: 'fail' }):
-            return (
-                <div className="control">
-                    <div className="status">Something went wrong...</div>
-                    <button type="button" className="circle"
-                        style={{}} {...props}>
-                    </button>
-                </div>);
+            break;
         case props.state.matches({ asrtts: { recognising: 'pause' } }):
-            return (
-                <div className="control" {...props}>
-                    <div className="status-talk">click to continue</div>
-                    <button type="button" className="circle"
-                        style={{}}>
-                    </button>
-                </div>
-            );
+            promptText = "Click to continue"
+            break;
         case props.state.matches({ asrtts: 'recognising' }):
-            const visualOutput = props.state.context.tdmVisualOutputInfo || []
-            return (
-                <div className="control">
-                    <div className="status-talk">
-                        {
-                            (visualOutput.find(
-                                (el: any) => el.attribute === "text") || { value: "listening..." }).value
-                        }
-                    </div>
-                    <button type="button" className="circle"
-                        style={{ animation: "bordersize 2s infinite" }} {...props}>
-                    </button>
-                </div>
-            );
+            circleClass = "circle-recognising"
+            promptText = promptText || 'Listening...'
+            break;
         case props.state.matches({ asrtts: 'speaking' }):
-            return (
-                <div className="control">
-                    <div className="status">speaking...</div>
-                    <button type="button" className="circle-speaking"
-                        style={{ animation: "bordering 2s infinite" }} {...props}>
-                    </button>
-                </div>
-            );
+            circleClass = "circle-speaking"
+            promptText = promptText || 'Speaking...'
+            break;
         case props.state.matches({ dm: 'init' }):
-            return (
-                <div className="control" {...props}>
-                    <div className="status-talk">click to start!</div>
-                    <button type="button" className="circle-click"
-                        style={{}}>
-                    </button>
-                </div>
-            );
-
+            promptText = "Click to start!"
+            circleClass = "circle-click"
+            break;
         default:
-            return (
-                <div className="control">
-                    <div className="status-talk"></div>
-                    <button type="button" className="circle"
-                        style={{ background: "#fff" }} {...props}>
-                    </button>
-                </div>
-            );
+            promptText = promptText || '\u00A0'
     }
+    return (
+        <div className="control">
+            <figure className="prompt">
+                {promptImage &&
+                    <img src={promptImage}
+                        alt={promptText} />}
+            </figure>
+            <div className="status">
+                <button type="button" className={circleClass}
+                    style={{}} {...props}>
+                </button>
+                <div className="status-text">
+                    {promptText}
+                </div>
+            </div>
+        </div>);
 }
 
 const FigureButton = (props: Props): JSX.Element => {
@@ -337,7 +317,7 @@ function App() {
         )
 
     switch (true) {
-        case current.matches({ gui: 'showAlternatives' }):
+        default:
             return (
                 <div className="App">
                     <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
@@ -346,12 +326,6 @@ function App() {
                             {figureButtons}
                         </div>
                     </div>
-                </div>
-            )
-        default:
-            return (
-                <div className="App">
-                    <ReactiveButton state={current} alternative={{}} onClick={() => send('CLICK')} />
                 </div>
             )
     }
