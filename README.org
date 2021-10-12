@@ -14,16 +14,17 @@
    - Location: *(Europe) North Europe*
    - Pricing tier: *Free (F0)*
    - Resource group: group name from the previous step
-5. Within your Speech Service go to: Resourse management → Keys and
-   Endpoint and save your KEY 1.
+5. Within your Speech Service go to: *Resourse management → Keys and
+   Endpoint* and save your KEY 1.
 * Configure your backend 
 ** for TDM
-1. Port-forward the Kubernetes frontend to the local port, e.g. 12000
+1. Port-forward the Kubernetes frontend to the local port, e.g. 12000:
    #+begin_src sh
    kubectl port-forward svc/pipeline 12000:80 -n gusXXXXXX &
    #+end_src
-2. Install the dependencies
+2. Install *yarn dependency manager* and all the dependencies:
    #+begin_src
+   npm install --global yarn
    yarn
    #+end_src
 3. Configure your environment. Create ~.env~ file in the root folder, with the following contents
@@ -35,3 +36,11 @@
    REACT_APP_TTS_VOICE=en-US
    #+end_src
    note: you can use other language, e.g. ~sv-SE~ if it is supported by your application. 
+* Run server
+** locally
+with the command:
+#+begin_src
+yarn run start
+#+end_src
+
+
