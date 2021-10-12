@@ -31,7 +31,7 @@
    #+begin_src
    REACT_APP_SUBSCRIPTION_KEY=<AZURE KEY1>
    REACT_APP_BACKEND=TDM
-   REACT_APP_TDM_ENDPOINT=https://localhost:12000/interact
+   REACT_APP_TDM_ENDPOINT=http://localhost:12000/interact
    REACT_APP_ASR_LANGUAGE=en-US
    REACT_APP_TTS_VOICE=en-US
    #+end_src
