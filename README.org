@@ -1,0 +1,37 @@
+#+TITLE: How to run ~speechstate~
+* Create Azure account and enable speech services
+1. Apply for free student credits
+   https://azure.microsoft.com/en-us/free/students/. You should be
+   able to login with your GU account.
+2. Make sure that you are logged into the Azure portal (https://portal.azure.com/).
+3. Create a *Resource group* (you can use search field):
+   - Subscription: *Azure for students*
+   - Resource group: any name
+   - Region: *(Europe) North Europe*
+4. Create a *Speech service*:
+   - Name: any name
+   - Subscription: *Azure for students*
+   - Location: *(Europe) North Europe*
+   - Pricing tier: *Free (F0)*
+   - Resource group: group name from the previous step
+5. Within your Speech Service go to: Resourse management → Keys and
+   Endpoint and save your KEY 1.
+* Configure your backend 
+** for TDM
+1. Port-forward the Kubernetes frontend to the local port, e.g. 12000
+   #+begin_src sh
+   kubectl port-forward svc/pipeline 12000:80 -n gusXXXXXX &
+   #+end_src
+2. Install the dependencies
+   #+begin_src
+   yarn
+   #+end_src
+3. Configure your environment. Create ~.env~ file in the root folder, with the following contents
+   #+begin_src
+   REACT_APP_SUBSCRIPTION_KEY=<AZURE KEY1>
+   REACT_APP_BACKEND=TDM
+   REACT_APP_TDM_ENDPOINT=https://localhost:12000/interact
+   REACT_APP_ASR_LANGUAGE=en-US
+   REACT_APP_TTS_VOICE=en-US
+   #+end_src
+   note: you can use other language, e.g. ~sv-SE~ if it is supported by your application. 
