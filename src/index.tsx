@@ -175,10 +175,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
         actions: {
             recLogResult: (context: SDSContext) => {
                 /* context.recResult = event.recResult; */
-                console.log('<< ASR: ' + context.recResult[0]["utterance"]);
-            },
-            test: () => {
-                console.log('test')
+                console.log('U>', context.recResult[0]["utterance"], context.recResult[0]["confidence"]);
             },
             logIntent: (context: SDSContext) => {
                 /* context.nluData = event.data */
@@ -239,7 +236,6 @@ const ReactiveButton = (props: Props): JSX.Element => {
 }
 
 const FigureButton = (props: Props): JSX.Element => {
-    console.log(props)
     const caption = props.alternative.find((el: any) => el.attribute === "name").value
     const imageSrc = (props.alternative.find((el: any) => el.attribute === "image") || {}).value
     return (
@@ -256,23 +252,23 @@ function App() {
         devTools: true,
         actions: {
             recStart: asEffect((context) => {
-                console.log('Ready to receive a voice input.');
                 context.asr.start()
+                /* console.log('Ready to receive a voice input.'); */
             }),
             recStop: asEffect((context) => {
-                console.log('Recognition stopped.');
                 context.asr.abort()
+                /* console.log('Recognition stopped.'); */
             }),
             ttsStart: asEffect((context) => {
-                console.log(context)
+                /* console.log(context) */
                 const utterance = new context.ttsUtterance(context.ttsAgenda);
+                console.log("S>", context.ttsAgenda)
                 utterance.voice = context.voice
                 utterance.onend = () => send('ENDSPEECH')
                 context.tts.speak(utterance)
             }),
             ttsStop: asEffect((context) => {
-                console.log('TTS STOP...');
-                /* cancel() */
+                /* console.log('TTS STOP...'); */
                 context.tts.cancel()
             }),
             ponyfillASR: asEffect((context, _event) => {
