@@ -53,8 +53,24 @@ const machine = Machine<SDSContext, any, SDSEvent>({
         },
 
         asrtts: {
-            initial: 'getToken',
+            initial: 'init',
             states: {
+                init: {
+                    on: {
+                        CLICK: {
+                            target: 'getToken',
+                            actions: [
+                                assign({
+                                    audioCtx: (_ctx) =>
+                                        new ((window as any).AudioContext || (window as any).webkitAudioContext)()
+                                }),
+                                (context) =>
+                                    navigator.mediaDevices.getUserMedia({ audio: true })
+                                        .then(function(stream) { context.audioCtx.createMediaStreamSource(stream) })
+                            ]
+                        }
+                    }
+                },
                 getToken: {
                     invoke: {
                         id: "getAuthorizationToken",
@@ -75,6 +91,7 @@ const machine = Machine<SDSContext, any, SDSEvent>({
                         id: 'ponyTTS',
                         src: (context, _event) => (callback, _onReceive) => {
                             const ponyfill = createSpeechSynthesisPonyfill({
+                                audioContext: context.audioCtx,
                                 credentials: {
                                     region: REGION,
                                     authorizationToken: context.azureAuthorizationToken,
@@ -260,7 +277,6 @@ function App() {
                 /* console.log('Recognition stopped.'); */
             }),
             ttsStart: asEffect((context) => {
-                /* console.log(context) */
                 const utterance = new context.ttsUtterance(context.ttsAgenda);
                 console.log("S>", context.ttsAgenda)
                 utterance.voice = context.voice
@@ -275,6 +291,7 @@ function App() {
                 const
                     { SpeechRecognition }
                         = createSpeechRecognitionPonyfill({
+                            audioContext: context.audioCtx,
                             credentials: {
                                 region: REGION,
                                 authorizationToken: context.azureAuthorizationToken,

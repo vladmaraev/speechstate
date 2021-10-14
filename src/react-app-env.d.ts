@@ -36,6 +36,7 @@ interface SDSContext {
     tdmVisualOutputInfo: any;
     tdmExpectedAlternatives: any;
     azureAuthorizationToken: string;
+    audioCtx: any;
 }
 
 type SDSEvent =
