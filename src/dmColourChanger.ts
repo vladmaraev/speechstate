@@ -10,19 +10,27 @@ function say(text: string): Action<SDSContext, SDSEvent> {
 }
 
 export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
-    initial: 'init',
+    initial: 'idle',
     states: {
+        idle: {
+            on: {
+                CLICK: 'init'
+            }
+        },
         init: {
             on: {
+                TTS_READY: 'welcome',
                 CLICK: 'welcome'
             }
         },
+
         welcome: {
             initial: 'prompt',
             on: {
                 RECOGNISED: [
-                    // { target: 'stop', cond: (context) => context.recResult === 'stop' },
-                    { target: 'repaint' }]
+                    { target: 'stop', cond: (context) => context.recResult[0].utterance === 'Stop.' },
+                    { target: 'repaint' }],
+                TIMEOUT: '..',
             },
             states: {
                 prompt: {

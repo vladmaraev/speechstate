@@ -30,12 +30,36 @@ html, body {
     cursor: pointer;
     display: flex;
     flex-flow: row wrap;
+    align-items: left;
     &:hover .circle-click  {
 	background: $yel;
     }
-    .prompt  {
-	padding: 10px 45px;
+    .prompt img  {
+	height: 40vh;
+	padding: 10px 25px;
 	text-align: left;
+    }
+    .status {
+	// border: 1px solid #fff;
+	bottom: 0;
+	padding-left: 50px;
+	padding-right: 20px;
+	width: 100vw;
+	font-family: IBM Plex Mono, monospace;
+	font-style: italic;
+	font-weight: light;
+	font-size: 20pt;
+	text-align: left;
+	color: $dark;
+	z-index: 1;
+	&-talk {
+	    @extend .status;
+	}
+	.status-text {
+	    z-index: 5;
+	    position: relative;
+	    white-space: normal;
+	}
     }
     .circle {
 	position: absolute;
@@ -63,28 +87,7 @@ html, body {
 	    animation: bordersize 2s infinite;
 	}
     }
-    .status {
-	// border: 1px solid #fff;
-	bottom: 0;
-	padding-left: 50px;
-	padding-right: 20px;
-	width: 100vw;
-	font-family: IBM Plex Mono, monospace;
-	font-style: italic;
-	font-weight: light;
-	font-size: 20pt;
-	text-align: left;
-	color: $dark;
-	z-index: 1;
-	&-talk {
-	    @extend .status;
-	}
-	.status-text {
-	    z-index: 5;
-	    position: relative;
-	    white-space: normal;
-	}
-    }
+
 }
 
 
@@ -92,7 +95,7 @@ html, body {
 .select-wrapper {
     margin-left: 40px;
     margin-right: 20px;
-    top: 45vh;
+    top: 35vh;
     position: absolute;
     // display: none;
 }

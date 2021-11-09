@@ -87,11 +87,16 @@ const maybeAlternatives = choose<SDSContext, SDSEvent>([
 ])
 
 export const tdmDmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
-    initial: 'init',
+    initial: 'idle',
     states: {
+        idle: {
+            on: {
+                CLICK: 'init',
+            }
+        },
         init: {
             on: {
-                CLICK: 'tdm'
+                TTS_READY: 'tdm',
             }
         },
         tdm: {
