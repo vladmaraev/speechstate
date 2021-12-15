@@ -17,6 +17,19 @@
 5. Within your Speech Service go to: *Resourse management → Keys and
    Endpoint* and save your KEY 1.
 * Configure your backend 
+** no backend
+1. Install *yarn dependency manager* and all the dependencies:
+   #+begin_src
+   npm install --global yarn
+   yarn
+   #+end_src
+2. Configure your environment. Create ~.env~ file in the root folder, with the following contents
+   #+begin_src
+   REACT_APP_SUBSCRIPTION_KEY=<AZURE KEY1>
+   REACT_APP_ASR_LANGUAGE=en-US
+   REACT_APP_TTS_VOICE=en-US
+   #+end_src
+   note: you can use other language, e.g. ~sv-SE~ if it is supported by your application. 
 ** for TDM
 1. Port-forward the Kubernetes frontend to the local port, e.g. 12000:
    #+begin_src sh
