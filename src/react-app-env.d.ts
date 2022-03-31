@@ -19,10 +19,12 @@ interface MySpeechRecognition extends SpeechRecognition {
 
 interface SDSContext {
     asr: SpeechRecognition;
+    asrL2: SpeechRecognition;
     tts: SpeechSynthesis;
     voice: SpeechSynthesisVoice;
     ttsUtterance: MySpeechSynthesisUtterance;
     recResult: Hypothesis[];
+    recResultL2: Hypothesis[];
     hapticInput: string;
     nluData: any;
     ttsAgenda: string;
@@ -48,6 +50,7 @@ type SDSEvent =
     | { type: 'STARTSPEECH' }
     | { type: 'RECOGNISED' }
     | { type: 'ASRRESULT', value: Hypothesis[] }
+    | { type: 'ASRRESULT_L2', value: Hypothesis[] }
     | { type: 'ENDSPEECH' }
     | { type: 'LISTEN' }
     | { type: 'TIMEOUT' }

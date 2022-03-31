@@ -1,5 +1,5 @@
 $yel: hsla(77, 100%, 77%, 1);
-$pnk: hsla(25, 100%, 77%, 0.7);
+$pnk: hsla(55, 0%, 77%, 0.3);
 $rd: #CD1515;
 $mono: IBM Plex Mono, monospace;
 $dark: #063746;
@@ -11,7 +11,10 @@ $dark: #063746;
 }
 
 html, body {
-    height: 100vh;;
+    height: 100vh;
+    background-image: url("https://www.howwemontessori.com/.a/6a0147e1d4f40f970b027880174140200d-800wi");
+    background-repeat: no-repeat;
+    
 }
 
 .App {

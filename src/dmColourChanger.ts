@@ -9,6 +9,14 @@ function say(text: string): Action<SDSContext, SDSEvent> {
     return send((_context: SDSContext) => ({ type: "SPEAK", value: text }))
 }
 
+const svDict: { [index: string]: string } = {
+    'garlic': 'vitlök',
+    'onion': 'lök',
+    'bread': 'bröd',
+    'cheese': 'ost',
+    'milk': 'mjölk'
+}
+
 export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
     initial: 'idle',
     states: {
@@ -29,16 +37,37 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
             on: {
                 RECOGNISED: [
                     { target: 'stop', cond: (context) => context.recResult[0].utterance === 'Stop.' },
+                    { target: 'helpWord', cond: (context) => context.recResultL2[0].utterance.includes("I say") },
                     { target: 'repaint' }],
                 TIMEOUT: '..',
             },
             states: {
                 prompt: {
-                    entry: say("Tell me the colour"),
+                    entry: say("Vad har du på din inköpslista?"),
                     on: { ENDSPEECH: 'ask' }
                 },
                 ask: {
                     entry: send('LISTEN'),
+                },
+            }
+        },
+        helpWord: {
+            initial: 'prompt',
+            states: {
+                prompt: {
+                    entry: send((context: SDSContext) => ({
+                        type: "SPEAK",
+                        value: svDict[context.recResultL2[0].utterance.split(" ")[context.recResultL2[0].utterance.split(" ").length - 1].replace(/[?!]/, "")]
+                    })),
+                    on: { ENDSPEECH: 'ask' }
+                },
+                ask: {
+                    entry: send('LISTEN'),
+                    on: { RECOGNISED: 'yes' }
+                },
+                yes: {
+                    entry: say("Exakt!"),
+                    on: { ENDSPEECH: 'ask' }
                 },
             }
         },
@@ -50,11 +79,10 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = ({
             initial: 'prompt',
             states: {
                 prompt: {
-                    entry: sayColour,
+                    entry: say("Javisst!"),
                     on: { ENDSPEECH: 'repaint' }
                 },
                 repaint: {
-                    entry: 'changeColour',
                     always: '#root.dm.welcome'
                 }
             }
