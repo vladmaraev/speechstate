@@ -15,45 +15,25 @@
    - Pricing tier: *Free (F0)*
    - Resource group: group name from the previous step
 5. Within your Speech Service go to: *Resourse management → Keys and
-   Endpoint* and save your KEY 1.
-* Configure your backend 
-** no backend
-1. Install *yarn dependency manager* and all the dependencies:
-   #+begin_src
-   npm install --global yarn
-   yarn
-   #+end_src
-2. Configure your environment. Create ~.env~ file in the root folder, with the following contents
-   #+begin_src
-   REACT_APP_SUBSCRIPTION_KEY=<AZURE KEY1>
-   REACT_APP_ASR_LANGUAGE=en-US
-   REACT_APP_TTS_VOICE=en-US
-   #+end_src
-   note: you can use other language, e.g. ~sv-SE~ if it is supported by your application. 
-** for TDM
-1. Port-forward the Kubernetes frontend to the local port, e.g. 12000:
-   #+begin_src sh
-   kubectl port-forward svc/pipeline 12000:80 -n gusXXXXXX &
-   #+end_src
-2. Install *yarn dependency manager* and all the dependencies:
-   #+begin_src
-   npm install --global yarn
-   yarn
-   #+end_src
-3. Configure your environment. Create ~.env~ file in the root folder, with the following contents
-   #+begin_src
-   REACT_APP_SUBSCRIPTION_KEY=<AZURE KEY1>
-   REACT_APP_BACKEND=TDM
-   REACT_APP_TDM_ENDPOINT=http://localhost:12000/interact
-   REACT_APP_ASR_LANGUAGE=en-US
-   REACT_APP_TTS_VOICE=en-US
-   #+end_src
-   note: you can use other language, e.g. ~sv-SE~ if it is supported by your application. 
+   Endpoint* and copy your KEY 1.
+* Configure your app
+Modify the file ~static/index.html~ with desired Azure Key and app languages.
+#+begin_src 
+<div
+  id="speechstate"
+  data-azure-key="<your azure key>" 
+  data-tts-voice="en-US"
+  data-asr-language="en-US"
+></div>
+#+end_src
 * Run server
 ** locally
 with the command:
 #+begin_src
-yarn run start
+yarn start
 #+end_src
-
-
+** deploy to github pages
+with the command:
+#+begin_src
+yarn deploy
+#+end_src

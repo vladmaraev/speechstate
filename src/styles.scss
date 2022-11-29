@@ -11,7 +11,8 @@ $dark: #063746;
 }
 
 html, body {
-    height: 100vh;;
+    height: 100vh;
+    background: $pnk;
 }
 
 .App {
@@ -42,6 +43,7 @@ html, body {
     .status {
 	// border: 1px solid #fff;
 	bottom: 0;
+	padding-top: 10vh;
 	padding-left: 50px;
 	padding-right: 20px;
 	width: 100vw;
