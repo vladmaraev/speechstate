@@ -54,41 +54,41 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = {
       states: {
         purple: {
           always: [
-            { target: "#root.dm.win", cond: { type: "prob", threshold: 0.2 } },
-            { target: "#root.dm.lose" },
+            { target: "win", cond: { type: "prob", threshold: 0.2 } },
+            { target: "lose" },
           ],
         },
         orange: {
           always: [
-            { target: "#root.dm.win", cond: { type: "prob", threshold: 0.5 } },
-            { target: "#root.dm.lose" },
+            { target: "win", cond: { type: "prob", threshold: 0.5 } },
+            { target: "lose" },
           ],
         },
+        win: {
+          entry: [
+            say("You won!"),
+            assign({
+              winCount: (context) => context.winCount + 1,
+              gameCount: (context) => context.gameCount + 1,
+            }),
+          ],
+          on: { ENDSPEECH: "#root.dm.score" },
+        },
+        lose: {
+          entry: [
+            say("You lost!"),
+            assign({ gameCount: (context) => context.gameCount + 1 }),
+          ],
+          on: { ENDSPEECH: "#root.dm.score" },
+        },
       },
-    },
-    win: {
-      entry: [
-        say("You won!"),
-        assign({
-          winCount: (context) => context.winCount + 1,
-          gameCount: (context) => context.gameCount + 1,
-        }),
-      ],
-      on: { ENDSPEECH: "score" },
-    },
-    lose: {
-      entry: [
-        say("You lost!"),
-        assign({ gameCount: (context) => context.gameCount + 1 }),
-      ],
-      on: { ENDSPEECH: "score" },
     },
     score: {
       entry: send((context: SDSContext) => ({
         type: "SPEAK",
         value: `In total you won ${context.winCount} out of ${context.gameCount}. Let's play again!`,
       })),
-      on: { ENDSPEECH: "welcome" },
+      on: { ENDSPEECH: "#root.dm.welcome" },
     },
   },
 };
