@@ -5,9 +5,11 @@ import { createMachine, assign, actions, State } from "xstate";
 import { useMachine } from "@xstate/react";
 import { inspect } from "@xstate/inspect";
 import { dmMachine } from "./dmMarkovGame";
+import { SVG } from "@svgdotjs/svg.js";
 
 import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
+import { config } from "process";
 
 const { send, cancel } = actions;
 
@@ -32,6 +34,9 @@ const machine = createMachine(
     },
     id: "root",
     type: "parallel",
+    invoke: {
+      src: "getListeners",
+    },
     states: {
       dm: {
         ...dmMachine,
@@ -188,6 +193,29 @@ const machine = createMachine(
         return rnd >= cond.threshold ? true : false;
       },
     },
+    services: {
+      getListeners: () => (send) => {
+        const keyPressListener = (event: any) => {
+          if (event.keyCode === 37) {
+            send("L");
+          }
+          if (event.keyCode === 38) {
+            send("U");
+          }
+          if (event.keyCode === 39) {
+            send("R");
+          }
+          if (event.keyCode === 40) {
+            send("D");
+          }
+        };
+        window.addEventListener("keydown", keyPressListener);
+        return () => {
+          window.removeEventListener("keydown", keyPressListener);
+        };
+      },
+    },
+
     actions: {
       createAudioContext: (context: SDSContext) => {
         context.audioCtx = new ((window as any).AudioContext ||
@@ -285,7 +313,7 @@ function App({ domElement }: any) {
       azureKey: domElement.getAttribute("data-azure-key"),
     },
   };
-  const [state, send] = useMachine(machine, {
+  const [state, send, service] = useMachine(machine, {
     context: { ...machine.context, ...externalContext },
     devTools: process.env.NODE_ENV === "development" ? true : false,
     actions: {
@@ -327,6 +355,8 @@ function App({ domElement }: any) {
         context.asr.lang = process.env.REACT_APP_ASR_LANGUAGE || "en-US";
         context.asr.continuous = true;
         context.asr.interimResults = true;
+        context.asr.grammars = new SpeechGrammarList();
+        (context.asr.grammars as any).phrases = ["Down", "Up", "Left", "Right"];
         context.asr.onresult = function (event: any) {
           var result = event.results[0];
           if (result.isFinal) {
@@ -347,6 +377,70 @@ function App({ domElement }: any) {
     },
   });
 
+  React.useEffect(() => {
+    const subscription = service.subscribe((state) => {
+      // simple state logging
+      // console.log(state.value);
+      let s = ((state.value as any).dm.game || {}).mdp;
+      if (s) {
+        const rects = document.getElementsByTagName("rect");
+        for (let rect of rects) {
+          rect.setAttribute("fill", "#f06");
+        }
+        document.getElementById(s)?.setAttribute("fill", "#0cc");
+      }
+    });
+
+    return subscription.unsubscribe;
+  }, [service]);
+
+  React.useEffect(() => {
+    var draw = SVG().addTo("#draw").size(300, 300);
+
+    const drawState = (
+      id: string,
+      text: string,
+      x: number,
+      y: number,
+      width: number,
+      height: number
+    ) => {
+      let group = draw
+        .group()
+        .attr({ x: x, y: y, width: width, height: height });
+      group
+        .rect(width, height)
+        .radius(5)
+        .attr({ x: x, y: y, fill: "#f06" })
+        .id(id);
+      group.plain(text).attr({
+        x: x + width / 2,
+        y: y + height / 2,
+        fill: "#fff",
+        "dominant-baseline": "middle",
+        "text-anchor": "middle",
+      });
+    };
+
+    const drawArrow = (x1: number, y1: number, x2: number, y2: number) => {
+      draw
+        .line(x1, y1, x2, y2)
+        .stroke({ color: "#fff", width: 6 })
+        .marker("end", 3, 3, function (add) {
+          add.path("M 0 0 L 3 1.5 L 0 3 z").fill("#fff");
+        });
+    };
+
+    drawState("start", "start", 0, 100, 50, 50);
+    drawState("s2", "4", 0, 0, 50, 50);
+    drawState("s3", "7", 100, 0, 50, 50);
+    drawState("s4", "10", 100, 100, 50, 50);
+
+    drawArrow(25, 100, 25, 50);
+    drawArrow(50, 25, 100, 25);
+    drawArrow(50, 125, 100, 125);
+  }, []);
+
   switch (true) {
     default:
       return (
@@ -357,6 +451,7 @@ function App({ domElement }: any) {
             alternative={{}}
             onClick={() => send("CLICK")}
           />
+          <div id="draw" className="Draw"></div>
         </div>
       );
   }

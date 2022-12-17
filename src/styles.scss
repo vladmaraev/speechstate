@@ -16,13 +16,16 @@ html, body {
 }
 
 .App {
-  font-family: $mono;
-  text-align: center;
+    font-family: $mono;
+    text-align: center;
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100vh;
     background: $pnk;
+}
+.Draw {
+    height: 100%;
 }
 
 .control {

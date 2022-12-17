@@ -42,6 +42,8 @@ interface SDSContext {
 
   gameCount: number;
   winCount: number;
+  reward: number;
+  lastReward: number;
 }
 
 type SDSEvent =
@@ -56,4 +58,9 @@ type SDSEvent =
   | { type: "ENDSPEECH" }
   | { type: "LISTEN" }
   | { type: "TIMEOUT" }
-  | { type: "SPEAK"; value: string };
+  | { type: "SPEAK"; value: string }
+  | { type: "R" }
+  | { type: "L" }
+  | { type: "U" }
+  | { type: "D" }
+  | { type: "GAMEOVER" };
