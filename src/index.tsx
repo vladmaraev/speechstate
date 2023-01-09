@@ -355,8 +355,8 @@ function App({ domElement }: any) {
         context.asr.lang = process.env.REACT_APP_ASR_LANGUAGE || "en-US";
         context.asr.continuous = true;
         context.asr.interimResults = true;
-        context.asr.grammars = new SpeechGrammarList();
-        (context.asr.grammars as any).phrases = ["Down", "Up", "Left", "Right"];
+        // context.asr.grammars = new SpeechGrammarList();
+        // (context.asr.grammars as any).phrases = ["Down", "Up", "Left", "Right"];
         context.asr.onresult = function (event: any) {
           var result = event.results[0];
           if (result.isFinal) {
@@ -432,9 +432,9 @@ function App({ domElement }: any) {
     };
 
     drawState("start", "start", 0, 100, 50, 50);
-    drawState("s2", "4", 0, 0, 50, 50);
-    drawState("s3", "7", 100, 0, 50, 50);
-    drawState("s4", "10", 100, 100, 50, 50);
+    drawState("s2", "", 0, 0, 50, 50);
+    drawState("s3", "", 100, 0, 50, 50);
+    drawState("s4", "", 100, 100, 50, 50);
 
     drawArrow(25, 100, 25, 50);
     drawArrow(50, 25, 100, 25);
