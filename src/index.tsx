@@ -159,7 +159,20 @@ const machine = createMachine(
               },
               inprogress: {},
               match: {
-                entry: send("RECOGNISED"),
+                invoke: {
+                  id: "getIntents",
+                  src: (context) =>
+                    getIntents(
+                      context.recResult[0].utterance,
+                      context.parameters.azureLanguageKey!
+                    ),
+                  onDone: {
+                    actions: ["assignIntents", "sendRecognised"],
+                  },
+                  onError: {
+                    actions: "sendRecognised",
+                  },
+                },
               },
               pause: {
                 entry: "recStop",
@@ -207,10 +220,23 @@ const machine = createMachine(
       assignRecResult: assign({
         recResult: (_context, event: any) => event.value,
       }),
+      assignIntents: assign({
+        recIntents: (_context, event: any) => {
+          // console.log(event.data);
+          if (event.data.result) {
+            // console.log(event.data.result.prediction.);
+            return event.data.result.prediction.intents;
+          } else {
+            return undefined;
+          }
+        },
+      }),
       sendEndspeech: send("ENDSPEECH"),
+      sendRecognised: send("RECOGNISED"),
       recLogResult: (context: SDSContext) => {
         console.log("U>", context.recResult[0]["utterance"], {
           confidence: context.recResult[0]["confidence"],
+          intents: context.recIntents,
         });
       },
       logIntent: (context: SDSContext) => {
@@ -283,6 +309,7 @@ function App({ domElement }: any) {
       ttsLexicon: domElement.getAttribute("data-tts-lexicon"),
       asrLanguage: domElement.getAttribute("data-asr-language") || "en-US",
       azureKey: domElement.getAttribute("data-azure-key"),
+      azureLanguageKey: domElement.getAttribute("data-azure-language-key"),
     },
   };
   const [state, send] = useMachine(machine, {
@@ -301,8 +328,8 @@ function App({ domElement }: any) {
         let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${context.voice.name}">`;
         content =
           content +
-          (process.env.REACT_APP_TTS_LEXICON
-            ? `<lexicon uri="${process.env.REACT_APP_TTS_LEXICON}"/>`
+          (context.parameters.ttsLexicon
+            ? `<lexicon uri="${context.parameters.ttsLexicon}"/>`
             : "");
         content = content + `${context.ttsAgenda}</voice></speak>`;
         const utterance = new context.ttsUtterance(content);
@@ -324,7 +351,7 @@ function App({ domElement }: any) {
           },
         });
         context.asr = new SpeechRecognition();
-        context.asr.lang = process.env.REACT_APP_ASR_LANGUAGE || "en-US";
+        context.asr.lang = context.parameters.asrLanguage || "en-US";
         context.asr.continuous = true;
         context.asr.interimResults = true;
         context.asr.onresult = function (event: any) {
@@ -371,6 +398,38 @@ const getAuthorizationToken = (azureKey: string) =>
       },
     })
   ).then((data) => data.text());
+
+const getIntents = (query: string, azureLanguageKey: string) =>
+  fetch(
+    new Request(
+      "https://speechstate.cognitiveservices.azure.com/language/:analyze-conversations?api-version=2022-10-01-preview",
+      {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": azureLanguageKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          kind: "Conversation",
+          analysisInput: {
+            conversationItem: {
+              id: "PARTICIPANT_ID_HERE",
+              text: query,
+              modality: "text",
+              language: "en-GB", // todo: parametrise
+              participantId: "PARTICIPANT_ID_HERE",
+            },
+          },
+          parameters: {
+            projectName: "speechstate",
+            verbose: true,
+            deploymentName: "speechstate",
+            stringIndexType: "TextElement_V8",
+          },
+        }),
+      }
+    )
+  ).then((data) => data.json());
 
 const rootElement = document.getElementById("speechstate");
 ReactDOM.render(<App domElement={rootElement} />, rootElement);

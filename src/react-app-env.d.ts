@@ -22,15 +22,17 @@ interface Settings {
   ttsLexicon: string;
   asrLanguage: string;
   azureKey: string;
+  azureLanguageKey: string;
 }
 
 interface SDSContext {
-  parameters: Parameters;
+  parameters: Settings;
   asr: SpeechRecognition;
   tts: SpeechSynthesis;
   voice: SpeechSynthesisVoice;
   ttsUtterance: MySpeechSynthesisUtterance;
   recResult: Hypothesis[];
+  recIntents: any;
   hapticInput: string;
   nluData: any;
   ttsAgenda: string;

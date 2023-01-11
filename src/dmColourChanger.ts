@@ -37,8 +37,9 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = {
         TIMEOUT: "..",
       },
       states: {
+        hist: { type: "history" },
         prompt: {
-          entry: say("Tell me the colour"),
+          entry: say("What would you like to have?"),
           on: { ENDSPEECH: "ask" },
         },
         ask: {
@@ -54,13 +55,13 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = {
       initial: "prompt",
       states: {
         prompt: {
-          entry: sayColour,
-          on: { ENDSPEECH: "repaint" },
+          entry: say("Sure! Anything else?"),
+          on: { ENDSPEECH: "#root.dm.welcome.hist" },
         },
-        repaint: {
-          entry: "changeColour",
-          always: "#root.dm.welcome",
-        },
+        // repaint: {
+        //   entry: "changeColour",
+        //   always: "#root.dm.welcome",
+        // },
       },
     },
   },
