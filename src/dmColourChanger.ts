@@ -1,44 +1,41 @@
-import { MachineConfig, send, Action } from "xstate";
+import { MachineConfig, send, assign } from "xstate";
 
-const sayColour: Action<SDSContext, SDSEvent> = send((context: SDSContext) => ({
-  type: "SPEAK",
-  value: `Repainting to ${context.recResult[0].utterance}`,
-}));
-
-function say(text: string): Action<SDSContext, SDSEvent> {
-  return send((_context: SDSContext) => ({ type: "SPEAK", value: text }));
-}
-
-export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = {
-  initial: "idle",
+export const dmMachine: MachineConfig<DomainContext, any, SDSEvent> = {
+  predictableActionArguments: true,
+  initial: "pre",
   states: {
-    idle: {
+    pre: {
       on: {
-        CLICK: "init",
+        PREPARE: "init",
       },
     },
     init: {
       on: {
-        TTS_READY: "welcome",
-        CLICK: "welcome",
+        CLICK: { target: "welcome", in: "#sds.asrtts.ready" },
       },
     },
-
     welcome: {
       initial: "prompt",
       on: {
         RECOGNISED: [
           {
             target: "stop",
-            cond: (context) => context.recResult[0].utterance === "Stop.",
+            actions: (_c, e) => console.log(e),
+            cond: (_c, e) => e.value[0].utterance === "Stop",
           },
-          { target: "repaint" },
+          {
+            target: "repaint",
+            actions: assign({
+              colour: (_c, e) =>
+                e.value[0].utterance.toLowerCase().replace(/[\W_]+/g, ""),
+            }),
+          },
         ],
-        TIMEOUT: "..",
+        ASR_NOINPUT_TIMEOUT: "..",
       },
       states: {
         prompt: {
-          entry: say("Tell me the colour"),
+          entry: send({ type: "SPEAK", value: "Tell me the colour" }),
           on: { ENDSPEECH: "ask" },
         },
         ask: {
@@ -47,19 +44,22 @@ export const dmMachine: MachineConfig<SDSContext, any, SDSEvent> = {
       },
     },
     stop: {
-      entry: say("Ok"),
+      entry: send({ type: "SPEAK", value: "Ok." }),
       always: "init",
     },
     repaint: {
       initial: "prompt",
       states: {
         prompt: {
-          entry: sayColour,
+          entry: send((c: DomainContext) => ({
+            type: "SPEAK",
+            value: `Attempting to repaint to ${c.colour}`,
+          })),
           on: { ENDSPEECH: "repaint" },
         },
         repaint: {
           entry: "changeColour",
-          always: "#root.dm.welcome",
+          always: "#sds.dm.init",
         },
       },
     },
