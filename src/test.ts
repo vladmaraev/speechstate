@@ -5,11 +5,11 @@ import { inspect } from "@xstate/inspect";
 const cr = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "<MASK>",
+  key: "2e15e033f605414bbbfe26cb631ab755",
 };
 
 const settings: Settings = {
-  azureCredentials: cr, // or  "<MASK>"
+  azureCredentials: "https://tala.pratb.art/gettoken.php",
   asrDefaultCompleteTimeout: 0,
   locale: "en-US",
 };

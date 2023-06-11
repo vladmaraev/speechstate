@@ -1,4 +1,11 @@
-import { createMachine, sendParent, assign, fromCallback } from "xstate";
+import {
+  createMachine,
+  sendParent,
+  assign,
+  fromCallback,
+  raise,
+  cancel,
+} from "xstate";
 import { getToken } from "./getToken";
 
 import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
@@ -15,7 +22,7 @@ export const asrMachine = createMachine(
     context: ({ input }) => ({
       asrDefaultCompleteTimeout: input.asrDefaultCompleteTimeout || 0,
       asrDefaultNoInputTimeout: input.asrDefaultNoInputTimeout || 5000,
-      language: input.locale || "en-US",
+      locale: input.locale || "en-US",
       audioContext: input.audioContext,
       azureCredentials: input.azureCredentials,
     }),
@@ -26,24 +33,131 @@ export const asrMachine = createMachine(
         target: ".ready",
         actions: [
           assign({
-            wsaTTS: ({ event }) => event.value.wsaTTS,
-            wsaUtt: ({ event }) => event.value.wsaUtt,
+            wsaASR: ({ event }) => event.value.wsaASR,
+            wsaGrammarList: ({ event }) => event.value.wsaGrammarList,
           }),
-          sendParent({ type: "TTS_READY" }),
+          sendParent({ type: "ASR_READY" }),
         ],
       },
-      ERROR: { actions: sendParent({ type: "TTS_ERROR" }) },
     },
     states: {
+      fail: {},
       ready: {
         on: {
           START: {
-            target: "speaking",
-            actions: assign({ agenda: ({ event }) => event.value }),
+            target: "recognising",
+            actions: assign({ params: ({ event }) => event.value }),
           },
         },
       },
-      fail: {},
+      recognising: {
+        initial: "waitForRecogniser",
+        invoke: {
+          id: "recStart",
+          input: ({ context }) => ({
+            wsaASR: context.wsaASR,
+            wsaGrammarList: context.wsaGrammarList,
+            locale: context.locale,
+            phrases: context.params.phrases,
+          }),
+          src: "recStart",
+        },
+        exit: "recStop",
+        on: {
+          RESULT: {
+            actions: [
+              assign({
+                result: ({ event }) => event.value,
+              }),
+              cancel("completeTimeout"),
+            ],
+            target: ".match",
+          },
+          RECOGNISED: {
+            target: "ready",
+            actions: [
+              sendParent(({ context }) => ({
+                type: "RECOGNISED",
+                value: context.result,
+              })),
+            ],
+          },
+          PAUSE: {
+            target: "pause",
+          },
+          NOINPUT: {
+            actions: sendParent({ type: "ASR_NOINPUT_TIMEOUT" }),
+            target: "ready",
+          },
+        },
+        states: {
+          waitForRecogniser: {
+            on: {
+              STARTED: {
+                target: "noinput",
+                actions: [
+                  assign({
+                    wsaASRinstance: ({ event }) => event.value.wsaASRinstance,
+                  }),
+                  sendParent({ type: "ASR_STARTED" }),
+                ],
+              },
+            },
+          },
+          noinput: {
+            entry: [
+              raise(
+                { type: "NOINPUT" },
+                {
+                  delay: ({ context }) =>
+                    (context.params || {}).noInputTimeout ||
+                    context.asrDefaultNoInputTimeout,
+                  id: "timeout",
+                }
+              ),
+            ],
+            on: {
+              STARTSPEECH: {
+                target: "inprogress",
+                actions: cancel("completeTimeout"),
+              },
+            },
+            exit: [cancel("timeout")],
+          },
+          inprogress: {
+            entry: () => console.debug("[ASR] in progress"),
+          },
+          match: {
+            entry: raise(
+              { type: "RECOGNISED" },
+              {
+                delay: ({ context }) =>
+                  (context.params || {}).completeTimeout ||
+                  context.asrDefaultCompleteTimeout,
+                id: "completeTimeout",
+              }
+            ),
+          },
+        },
+      },
+      pause: {
+        entry: sendParent({ type: "ASR_PAUSED" }),
+        on: {
+          CONTINUE: {
+            target: "recognising",
+            //       ///// todo? reset noInputTimeout
+            //       // actions: assign({
+            //       //   params: {
+            //       //     noInputTimeout: ({ context }) =>
+            //       //       context.asrDefaultNoInputTimeout,
+            //       //     completeTimeout: 0,
+            //       //     locale: "0",
+            //       //     hints: [""],
+            //       //   },
+            //       // }),} },
+          },
+        },
+      },
       getToken: {
         invoke: {
           id: "getAuthorizationToken",
@@ -66,7 +180,7 @@ export const asrMachine = createMachine(
       },
       ponyfill: {
         invoke: {
-          id: "ponyTTS",
+          id: "ponyASR",
           src: "ponyfill",
           input: ({ context }) => ({
             audioContext: context.audioContext,
@@ -78,6 +192,12 @@ export const asrMachine = createMachine(
     },
   },
   {
+    actions: {
+      recStop: ({ context }) => {
+        context.wsaASRinstance.abort();
+        console.debug("[ASR] stopped");
+      },
+    },
     actors: {
       getToken: getToken,
       ponyfill: fromCallback((sendBack, _receive, { input }) => {
@@ -89,14 +209,22 @@ export const asrMachine = createMachine(
               authorizationToken: input.azureAuthorizationToken,
             },
           });
-        const asr = new SpeechRecognition();
-        asr.grammars = new SpeechGrammarList();
-        asr.lang = "en-US";
+        sendBack({
+          type: "READY",
+          value: {
+            wsaASR: SpeechRecognition,
+            wsaGrammarList: SpeechGrammarList,
+          },
+        });
+        console.debug("[ASR] READY");
+      }),
+      recStart: fromCallback((sendBack, _receive, { input }) => {
+        let asr = new input.wsaASR!();
+        asr.grammars = new input.wsaGrammarList!();
+        asr.grammars.phrases = input.phrases || [];
+        asr.lang = input.locale;
         asr.continuous = true;
         asr.interimResults = true;
-        asr.onstart = function (_event: any) {
-          sendBack({ type: "ASR_START" });
-        };
         asr.onresult = function (event: any) {
           if (event.results[event.results.length - 1].isFinal) {
             const transcript = event.results
@@ -108,23 +236,32 @@ export const asrMachine = createMachine(
               event.results
                 .map((x: SpeechRecognitionResult) => x[0].confidence)
                 .reduce((a: number, b: number) => a + b) / event.results.length;
+            const res: Hypothesis[] = [
+              {
+                utterance: transcript,
+                confidence: confidence,
+              },
+            ];
             sendBack({
-              type: "ASRRESULT",
-              value: [
-                {
-                  utterance: transcript,
-                  confidence: confidence,
-                },
-              ],
+              type: "RESULT",
+              value: res,
             });
+            console.debug("[ASR] RESULT (pre-final)", res);
           } else {
             sendBack({ type: "STARTSPEECH" });
           }
         };
-        sendBack({
-          type: "READY",
-          value: { wsaASR: asr },
+        asr.addEventListener("start", () => {
+          sendBack({ type: "STARTED", value: { wsaASRinstance: asr } });
         });
+
+        // receive((event) => {
+        //   console.debug("bla");
+        //   if (event.type === "STOP") {
+        //     asr.abort();
+        //   }
+        // });
+        asr.start();
       }),
     },
   }

@@ -182,7 +182,7 @@ export const ttsMachine = createMachine(
 
                 const re = /(,\s)|([!.?](\s|$))/;
                 const m = buffer.match(re);
-                if (m && !input.wsaTTS.speaking) {
+                if (m) {
                   const sep = m[0];
                   const utt = buffer.split(sep)[0] + sep;
                   buffer = buffer.split(sep).slice(1).join(sep);
@@ -200,7 +200,7 @@ export const ttsMachine = createMachine(
             };
           }
         } else {
-          if (input.utterance === "") {
+          if (["", " "].includes(input.utterance)) {
             console.debug("[TTS] SPEAK: ", input.utterance);
             input.wsaTTS.speak("");
           } else {
@@ -237,6 +237,6 @@ const wrapSSML = (
   content =
     content +
     `<prosody rate="${speechRate}">` +
-    `${text}<mstts:silence  type="Tailing-exact" value="0ms"/></prosody></voice></speak>`;
+    `${text}</prosody></voice></speak>`;
   return content;
 };

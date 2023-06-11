@@ -1,13 +1,13 @@
 import { createMachine, assign, fromPromise, raise } from "xstate";
 import { ttsMachine } from "./tts";
-// import { asrMachine } from "./asr";
+import { asrMachine } from "./asr";
 // import { tdmDmMachine } from "./tdmClient";
 
 const machine = createMachine(
   {
     types: {
-      context: {} as SDSContext,
-      events: {} as SDSEvent,
+      context: {} as SSContext,
+      events: {} as SSEvent,
     },
     context: ({ input }) => ({
       settings: input.settings,
@@ -35,7 +35,20 @@ const machine = createMachine(
                 ttsRef: ({ context, spawn }) => {
                   return spawn(ttsMachine, {
                     input: {
-                      ttsDefaultVoice: "en-US-DavisNeural",
+                      ttsDefaultVoice: "en-US-DavisNeural", // todo: config defaults
+                      audioContext: context.audioContext,
+                      azureCredentials: context.settings.azureCredentials,
+                    },
+                  });
+                },
+              }),
+              assign({
+                asrRef: ({ context, spawn }) => {
+                  return spawn(asrMachine, {
+                    input: {
+                      asrDefaultCompleteTimeout: 0, // todo: config defaults
+                      asrDefaultNoInputTimeout: 5000,
+                      locale: "en-US",
                       audioContext: context.audioContext,
                       azureCredentials: context.settings.azureCredentials,
                     },
@@ -43,11 +56,11 @@ const machine = createMachine(
                 },
               }),
             ],
-            // after: {
-            //   30000: {
-            //     target: "spawn",
-            //   },
-            // },
+            after: {
+              300000: {
+                target: "spawn",
+              },
+            },
           },
         },
       },
@@ -55,35 +68,44 @@ const machine = createMachine(
         initial: "initialize",
         on: {
           TTS_READY: {
-            actions: () => console.debug("[TTS→SDS] TTS_READY"),
-            target: ".ready",
+            actions: () => console.debug("[TTS→SpSt] TTS_READY"),
+            target: ".preReady",
           },
           ASR_READY: {
-            target: ".ready",
+            actions: () => console.debug("[ASR→SpSt] ASR_READY"),
+            target: ".preReady",
           },
+          // ASR_ERROR not implemented
           TTS_ERROR: {
-            actions: () => console.error("[TTS→SDS] TTS_ERROR"),
+            actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
             target: ".fail",
           },
-          ASR_NOINPUT_TIMEOUT: ".ready",
+          ASR_NOINPUT_TIMEOUT: {
+            actions: () => console.debug("[ASR→SpSt] ASR_NOINPUT_TIMEOUT"),
+            target: ".ready",
+          },
         },
         states: {
-          initialize: {
-            initial: "ponyfill",
-            states: {
-              fail: {},
-              ponyfill: {},
-              preReady: {},
+          initialize: {},
+          preReady: {
+            on: {
+              TTS_READY: {
+                actions: () => console.debug("[TTS→SpSt] TTS_READY"),
+                target: "ready",
+              },
+              ASR_READY: {
+                actions: () => console.debug("[ASR→SpSt] ASR_READY"),
+                target: "ready",
+              },
             },
           },
           ready: {
             initial: "idle",
+            entry: () => console.debug("[SpSt] All ready"),
             states: {
               idle: {
                 on: {
-                  LISTEN: [
-                    // { target: "waitForRecogniser" }
-                  ],
+                  LISTEN: { target: "waitForRecogniser" },
                   SPEAK: [
                     {
                       target: "speaking",
@@ -94,7 +116,7 @@ const machine = createMachine(
               speaking: {
                 entry: [
                   ({ event }) =>
-                    console.debug("[SDS→TTS] START", (event as any).value),
+                    console.debug("[SpSt→TTS] START", (event as any).value),
                   ({ context, event }) =>
                     context.ttsRef.send({
                       type: "START",
@@ -104,7 +126,7 @@ const machine = createMachine(
                 on: {
                   PAUSE: {
                     actions: [
-                      () => console.debug("[SDS→TTS] PAUSE"),
+                      () => console.debug("[SpSt→TTS] PAUSE"),
                       ({ context }) =>
                         context.ttsRef.send({
                           type: "PAUSE",
@@ -113,7 +135,7 @@ const machine = createMachine(
                   },
                   CONTINUE: {
                     actions: [
-                      () => console.debug("[SDS→TTS] CONTINUE"),
+                      () => console.debug("[SpSt→TTS] CONTINUE"),
                       ({ context }) =>
                         context.ttsRef.send({
                           type: "CONTINUE",
@@ -122,7 +144,7 @@ const machine = createMachine(
                   },
                   STOP: {
                     actions: [
-                      () => console.debug("[SDS→TTS] STOP"),
+                      () => console.debug("[SpSt→TTS] STOP"),
                       ({ context }) =>
                         context.ttsRef.send({
                           type: "STOP",
@@ -131,30 +153,58 @@ const machine = createMachine(
                   },
                   ENDSPEECH: {
                     target: "idle",
-                    actions: () => console.debug("[SDS→TTS] ENDSPEECH"),
+                    actions: () => console.debug("[TTS→SpSt] ENDSPEECH"),
                   },
                 },
               },
-              // waitForRecogniser: {
-              //   entry: ({ context }) =>
-              //     context.asrRef.send({
-              //       type: "START",
-              //       value: {
-              //         noinputTimeout: context.tdmPassivity ?? 1000 * 3600 * 24,
-              //         completeTimeout:
-              //           context.tdmSpeechCompleteTimeout ||
-              //           context.settings.completeTimeout,
-              //       },
-              //     }),
-              //   on: {
-              //     ASR_STARTED: "recognising",
-              //   },
-              // },
+              waitForRecogniser: {
+                entry: [
+                  ({ event }) =>
+                    console.debug("[SpSt→ASR] START", (event as any).value),
+                  ({ context, event }) =>
+                    context.asrRef.send({
+                      type: "START",
+                      value: (event as any).value,
+                    }),
+                ],
+                on: {
+                  ASR_STARTED: {
+                    target: "recognising",
+                    actions: ({ event }) =>
+                      console.debug("[ASR→SpSt] ASR_STARTED"),
+                  },
+                },
+              },
               recognising: {
                 on: {
+                  PAUSE: {
+                    actions: [
+                      () => console.debug("[SpSt→ASR] PAUSE"),
+                      ({ context }) =>
+                        context.asrRef.send({
+                          type: "PAUSE",
+                        }),
+                    ],
+                  },
+                  CONTINUE: {
+                    actions: [
+                      () => console.debug("[SpSt→ASR] CONTINUE"),
+                      ({ context }) =>
+                        context.asrRef.send({
+                          type: "CONTINUE",
+                        }),
+                    ],
+                  },
+                  ASR_PAUSED: {
+                    actions: () => console.debug("[ASR→SpSt] ASR_PAUSED"),
+                  },
                   RECOGNISED: {
+                    actions: ({ event }) =>
+                      console.debug(
+                        "[ASR→SpSt] RECOGNISED",
+                        (event as any).value
+                      ),
                     target: "idle",
-                    // actions: "logRecResult",
                   },
                 },
               },
@@ -179,15 +229,6 @@ const machine = createMachine(
       }),
     },
     actions: {
-      // createAudioContext: ({ context }) => {
-      //   const audioCtx = new ((window as any).AudioContext ||
-      //     (window as any).webkitAudioContext)();
-      //   navigator.mediaDevices
-      //     .getUserMedia({ audio: true })
-      //     .then(function (stream) {
-      //       audioCtx.createMediaStreamSource(stream);
-      //     });
-      // },
       //   logRecResult: ({ event }) => {
       //     console.log("U>", (event as any).value[0]["utterance"], {
       //       confidence: (event as any).value[0]["confidence"],
