@@ -13,6 +13,7 @@
     },
     "include": [
         "src/typings.d.ts",
+        "src/index.ts",
         "src/speechstate.ts",
         "src/test.ts",
         "src/tts.ts",

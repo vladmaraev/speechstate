@@ -27,10 +27,10 @@ export const asrMachine = createMachine(
       azureCredentials: input.azureCredentials,
     }),
 
-    initial: "getToken",
+    initial: "GetToken",
     on: {
       READY: {
-        target: ".ready",
+        target: ".Ready",
         actions: [
           assign({
             wsaASR: ({ event }) => event.value.wsaASR,
@@ -41,16 +41,16 @@ export const asrMachine = createMachine(
       },
     },
     states: {
-      fail: {},
-      ready: {
+      Fail: {},
+      Ready: {
         on: {
           START: {
-            target: "recognising",
+            target: "Recognising",
             actions: assign({ params: ({ event }) => event.value }),
           },
         },
       },
-      recognising: {
+      Recognising: {
         initial: "waitForRecogniser",
         invoke: {
           id: "recStart",
@@ -58,7 +58,7 @@ export const asrMachine = createMachine(
             wsaASR: context.wsaASR,
             wsaGrammarList: context.wsaGrammarList,
             locale: context.locale,
-            phrases: context.params.phrases,
+            phrases: (context.params || {}).phrases || [],
           }),
           src: "recStart",
         },
@@ -71,10 +71,10 @@ export const asrMachine = createMachine(
               }),
               cancel("completeTimeout"),
             ],
-            target: ".match",
+            target: ".Match",
           },
           RECOGNISED: {
-            target: "ready",
+            target: "Ready",
             actions: [
               sendParent(({ context }) => ({
                 type: "RECOGNISED",
@@ -83,18 +83,18 @@ export const asrMachine = createMachine(
             ],
           },
           PAUSE: {
-            target: "pause",
+            target: "Pause",
           },
           NOINPUT: {
             actions: sendParent({ type: "ASR_NOINPUT_TIMEOUT" }),
-            target: "ready",
+            target: "Ready",
           },
         },
         states: {
-          waitForRecogniser: {
+          WaitForRecogniser: {
             on: {
               STARTED: {
-                target: "noinput",
+                target: "NoInput",
                 actions: [
                   assign({
                     wsaASRinstance: ({ event }) => event.value.wsaASRinstance,
@@ -104,7 +104,7 @@ export const asrMachine = createMachine(
               },
             },
           },
-          noinput: {
+          NoInput: {
             entry: [
               raise(
                 { type: "NOINPUT" },
@@ -118,16 +118,16 @@ export const asrMachine = createMachine(
             ],
             on: {
               STARTSPEECH: {
-                target: "inprogress",
+                target: "InProgress",
                 actions: cancel("completeTimeout"),
               },
             },
             exit: [cancel("timeout")],
           },
-          inprogress: {
+          InProgress: {
             entry: () => console.debug("[ASR] in progress"),
           },
-          match: {
+          Match: {
             entry: raise(
               { type: "RECOGNISED" },
               {
@@ -140,11 +140,11 @@ export const asrMachine = createMachine(
           },
         },
       },
-      pause: {
+      Pause: {
         entry: sendParent({ type: "ASR_PAUSED" }),
         on: {
           CONTINUE: {
-            target: "recognising",
+            target: "Recognising",
             //       ///// todo? reset noInputTimeout
             //       // actions: assign({
             //       //   params: {
@@ -158,7 +158,7 @@ export const asrMachine = createMachine(
           },
         },
       },
-      getToken: {
+      GetToken: {
         invoke: {
           id: "getAuthorizationToken",
           input: ({ context }) => ({
@@ -166,7 +166,7 @@ export const asrMachine = createMachine(
           }),
           src: "getToken",
           onDone: {
-            target: "ponyfill",
+            target: "Ponyfill",
             actions: [
               assign(({ event }) => {
                 return { azureAuthorizationToken: event.output };
@@ -174,11 +174,11 @@ export const asrMachine = createMachine(
             ],
           },
           onError: {
-            target: "fail",
+            target: "Fail",
           },
         },
       },
-      ponyfill: {
+      Ponyfill: {
         invoke: {
           id: "ponyASR",
           src: "ponyfill",

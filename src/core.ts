@@ -21,7 +21,9 @@ const talaSpeechService = interpret(machine, {
 });
 
 talaSpeechService.subscribe((state) => {
-  // console.debug(state.value);
+  console.debug(state.value);
+  console.debug(state.context.ttsRef);
+  console.debug(state.context.asrRef);
 });
 
 talaSpeechService.start();

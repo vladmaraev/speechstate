@@ -1,4 +1,4 @@
-import { createMachine, assign, fromPromise, raise } from "xstate";
+import { createMachine, assign, fromPromise, sendParent } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 // import { tdmDmMachine } from "./tdmClient";
@@ -101,9 +101,13 @@ const machine = createMachine(
           },
           ready: {
             initial: "idle",
-            entry: () => console.debug("[SpSt] All ready"),
+            entry: [
+              () => console.debug("[SpSt] All ready"),
+              sendParent({ type: "ASRTTS_READY" }),
+            ],
             states: {
               idle: {
+                entry: [() => console.debug("[SpSt] All ready!")],
                 on: {
                   LISTEN: { target: "waitForRecogniser" },
                   SPEAK: [
@@ -153,7 +157,10 @@ const machine = createMachine(
                   },
                   ENDSPEECH: {
                     target: "idle",
-                    actions: () => console.debug("[TTS→SpSt] ENDSPEECH"),
+                    actions: [
+                      () => console.debug("[TTS→SpSt] ENDSPEECH"),
+                      sendParent({ type: "ENDSPEECH" }),
+                    ],
                   },
                 },
               },
@@ -199,11 +206,17 @@ const machine = createMachine(
                     actions: () => console.debug("[ASR→SpSt] ASR_PAUSED"),
                   },
                   RECOGNISED: {
-                    actions: ({ event }) =>
-                      console.debug(
-                        "[ASR→SpSt] RECOGNISED",
-                        (event as any).value
-                      ),
+                    actions: [
+                      ({ event }) =>
+                        console.debug(
+                          "[ASR→SpSt] RECOGNISED",
+                          (event as any).value
+                        ),
+                      sendParent(({ event }) => ({
+                        type: "RECOGNISED",
+                        value: (event as any).value,
+                      })),
+                    ],
                     target: "idle",
                   },
                 },

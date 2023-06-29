@@ -65,6 +65,8 @@ export const ttsMachine = createMachine(
             ],
           },
           onError: {
+            actions: ({ event }) =>
+              console.error("[TTS] getToken error", event),
             target: "fail",
           },
         },
