@@ -2772,6 +2772,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@parcel/transformer-typescript-types@npm:2.9.3":
+  version: 2.9.3
+  resolution: "@parcel/transformer-typescript-types@npm:2.9.3"
+  dependencies:
+    "@parcel/diagnostic": 2.9.3
+    "@parcel/plugin": 2.9.3
+    "@parcel/source-map": ^2.1.1
+    "@parcel/ts-utils": 2.9.3
+    "@parcel/utils": 2.9.3
+    nullthrows: ^1.1.1
+  peerDependencies:
+    typescript: ">=3.0.0"
+  checksum: 33ac58ec7d7163b4181ec1b27b55e7d533451991de9adfabfee7ede7a3f3eef6587cb845abb54d33565ef45d1be9dd4664d5d1a127ff8b1f72fc8486abf8415c
+  languageName: node
+  linkType: hard
+
+"@parcel/ts-utils@npm:2.9.3":
+  version: 2.9.3
+  resolution: "@parcel/ts-utils@npm:2.9.3"
+  dependencies:
+    nullthrows: ^1.1.1
+  peerDependencies:
+    typescript: ">=3.0.0"
+  checksum: c070a5678342df3fc26019eb631762c7995cbd0227d27f564cfdc08e7153bd0edd0eec315d6a0df59ed473c217272c34dcbeff48461121231bc0bd894b4f8d89
+  languageName: node
+  linkType: hard
+
 "@parcel/types@npm:2.9.3":
   version: 2.9.3
   resolution: "@parcel/types@npm:2.9.3"
@@ -7372,6 +7399,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "speechstate@workspace:."
   dependencies:
+    "@parcel/transformer-typescript-types": 2.9.3
     "@types/jest": ^29.5.2
     "@types/webspeechapi": ^0.0.29
     buffer: ^5.5.0||^6.0.0
@@ -7382,7 +7410,7 @@ __metadata:
     process: ^0.11.10
     ts-jest: ^29.1.0
     typescript: ^5.0.4
-    web-speech-cognitive-services: ^7.1.1
+    web-speech-cognitive-services: ^7.1.2
     xstate: ^5.0.0-beta.21
   languageName: unknown
   linkType: soft
@@ -7884,7 +7912,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"web-speech-cognitive-services@npm:^7.1.1":
+"web-speech-cognitive-services@npm:^7.1.2":
   version: 7.1.3
   resolution: "web-speech-cognitive-services@npm:7.1.3"
   dependencies:

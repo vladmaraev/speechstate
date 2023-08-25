@@ -10,7 +10,7 @@
         "/dist"
     ],
     "dependencies": {
-        "web-speech-cognitive-services": "^7.1.1",
+        "web-speech-cognitive-services": "^7.1.2",
         "xstate": "^5.0.0-beta.21"
     },
     "scripts": {
@@ -36,6 +36,7 @@
         ]
     },
     "devDependencies": {
+        "@parcel/transformer-typescript-types": "2.9.3",
         "@types/jest": "^29.5.2",
         "@types/webspeechapi": "^0.0.29",
         "buffer": "^5.5.0||^6.0.0",

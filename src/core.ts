@@ -1,6 +1,5 @@
 import { interpret } from "xstate";
 import { machine } from "./speechstate";
-import { inspect } from "@xstate/inspect";
 
 const cr: AzureCredentials = {
   endpoint:
