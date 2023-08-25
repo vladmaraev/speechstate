@@ -103,11 +103,10 @@ const machine = createMachine(
             initial: "idle",
             entry: [
               () => console.debug("[SpSt] All ready"),
-              sendParent({ type: "ASRTTS_READY" }),
+              // sendParent({ type: "ASRTTS_READY" }),
             ],
             states: {
               idle: {
-                entry: [() => console.debug("[SpSt] All ready!")],
                 on: {
                   LISTEN: { target: "waitForRecogniser" },
                   SPEAK: [
@@ -159,7 +158,7 @@ const machine = createMachine(
                     target: "idle",
                     actions: [
                       () => console.debug("[TTS→SpSt] ENDSPEECH"),
-                      sendParent({ type: "ENDSPEECH" }),
+                      // sendParent({ type: "ENDSPEECH" }),
                     ],
                   },
                 },
@@ -177,8 +176,7 @@ const machine = createMachine(
                 on: {
                   ASR_STARTED: {
                     target: "recognising",
-                    actions: ({ event }) =>
-                      console.debug("[ASR→SpSt] ASR_STARTED"),
+                    actions: () => console.debug("[ASR→SpSt] ASR_STARTED"),
                   },
                 },
               },
@@ -210,12 +208,12 @@ const machine = createMachine(
                       ({ event }) =>
                         console.debug(
                           "[ASR→SpSt] RECOGNISED",
-                          (event as any).value
+                          (event as any).value,
                         ),
-                      sendParent(({ event }) => ({
-                        type: "RECOGNISED",
-                        value: (event as any).value,
-                      })),
+                      // sendParent(({ event }) => ({
+                      //   type: "RECOGNISED",
+                      //   value: (event as any).value,
+                      // })),
                     ],
                     target: "idle",
                   },
@@ -257,7 +255,7 @@ const machine = createMachine(
       //     });
       //   },
     },
-  }
+  },
 );
 
 export { machine };

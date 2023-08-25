@@ -51,14 +51,14 @@ export const asrMachine = createMachine(
         },
       },
       Recognising: {
-        initial: "waitForRecogniser",
+        initial: "WaitForRecogniser",
         invoke: {
           id: "recStart",
           input: ({ context }) => ({
             wsaASR: context.wsaASR,
             wsaGrammarList: context.wsaGrammarList,
             locale: context.locale,
-            phrases: (context.params || {}).phrases || [],
+            phrases: (context.params || {}).hints || [],
           }),
           src: "recStart",
         },
@@ -113,7 +113,7 @@ export const asrMachine = createMachine(
                     (context.params || {}).noInputTimeout ||
                     context.asrDefaultNoInputTimeout,
                   id: "timeout",
-                }
+                },
               ),
             ],
             on: {
@@ -128,15 +128,23 @@ export const asrMachine = createMachine(
             entry: () => console.debug("[ASR] in progress"),
           },
           Match: {
-            entry: raise(
-              { type: "RECOGNISED" },
-              {
-                delay: ({ context }) =>
+            entry: [
+              ({ context }) =>
+                console.debug(
+                  "RECOGNISED will be sent in (ms)",
                   (context.params || {}).completeTimeout ||
-                  context.asrDefaultCompleteTimeout,
-                id: "completeTimeout",
-              }
-            ),
+                    context.asrDefaultCompleteTimeout,
+                ),
+              raise(
+                { type: "RECOGNISED" },
+                {
+                  delay: ({ context }) =>
+                    (context.params || {}).completeTimeout ||
+                    context.asrDefaultCompleteTimeout,
+                  id: "completeTimeout",
+                },
+              ),
+            ],
           },
         },
       },
@@ -185,7 +193,7 @@ export const asrMachine = createMachine(
           input: ({ context }) => ({
             audioContext: context.audioContext,
             azureAuthorizationToken: context.azureAuthorizationToken,
-            voice: context.ttsVoice,
+            locale: context.locale,
           }),
         },
       },
@@ -200,69 +208,74 @@ export const asrMachine = createMachine(
     },
     actors: {
       getToken: getToken,
-      ponyfill: fromCallback((sendBack, _receive, { input }) => {
-        const { SpeechGrammarList, SpeechRecognition } =
-          createSpeechRecognitionPonyfill({
-            audioContext: input.audioContext,
-            credentials: {
-              region: REGION, // TODO
-              authorizationToken: input.azureAuthorizationToken,
+      ponyfill: fromCallback(
+        async ({ sendBack, input }: { sendBack: any; input: any }) => {
+          const { SpeechGrammarList, SpeechRecognition } =
+            createSpeechRecognitionPonyfill({
+              audioContext: input.audioContext,
+              credentials: {
+                region: REGION, // TODO
+                authorizationToken: input.azureAuthorizationToken,
+              },
+            });
+          sendBack({
+            type: "READY",
+            value: {
+              wsaASR: SpeechRecognition,
+              wsaGrammarList: SpeechGrammarList,
             },
           });
-        sendBack({
-          type: "READY",
-          value: {
-            wsaASR: SpeechRecognition,
-            wsaGrammarList: SpeechGrammarList,
-          },
-        });
-        console.debug("[ASR] READY");
-      }),
-      recStart: fromCallback((sendBack, _receive, { input }) => {
-        let asr = new input.wsaASR!();
-        asr.grammars = new input.wsaGrammarList!();
-        asr.grammars.phrases = input.phrases || [];
-        asr.lang = input.locale;
-        asr.continuous = true;
-        asr.interimResults = true;
-        asr.onresult = function (event: any) {
-          if (event.results[event.results.length - 1].isFinal) {
-            const transcript = event.results
-              .map((x: SpeechRecognitionResult) =>
-                x[0].transcript.replace(/\.$/, "")
-              )
-              .join(" ");
-            const confidence =
-              event.results
-                .map((x: SpeechRecognitionResult) => x[0].confidence)
-                .reduce((a: number, b: number) => a + b) / event.results.length;
-            const res: Hypothesis[] = [
-              {
-                utterance: transcript,
-                confidence: confidence,
-              },
-            ];
-            sendBack({
-              type: "RESULT",
-              value: res,
-            });
-            console.debug("[ASR] RESULT (pre-final)", res);
-          } else {
-            sendBack({ type: "STARTSPEECH" });
-          }
-        };
-        asr.addEventListener("start", () => {
-          sendBack({ type: "STARTED", value: { wsaASRinstance: asr } });
-        });
+          console.debug("[ASR] READY");
+        },
+      ),
+      recStart: fromCallback(
+        ({ sendBack, input }: { sendBack: any; input: any }) => {
+          let asr = new input.wsaASR!();
+          asr.grammars = new input.wsaGrammarList!();
+          asr.grammars.phrases = input.phrases || [];
+          asr.lang = input.locale;
+          asr.continuous = true;
+          asr.interimResults = true;
+          asr.onresult = function (event: any) {
+            if (event.results[event.results.length - 1].isFinal) {
+              const transcript = event.results
+                .map((x: SpeechRecognitionResult) =>
+                  x[0].transcript.replace(/\.$/, ""),
+                )
+                .join(" ");
+              const confidence =
+                event.results
+                  .map((x: SpeechRecognitionResult) => x[0].confidence)
+                  .reduce((a: number, b: number) => a + b) /
+                event.results.length;
+              const res: Hypothesis[] = [
+                {
+                  utterance: transcript,
+                  confidence: confidence,
+                },
+              ];
+              sendBack({
+                type: "RESULT",
+                value: res,
+              });
+              console.debug("[ASR] RESULT (pre-final)", res);
+            } else {
+              sendBack({ type: "STARTSPEECH" });
+            }
+          };
+          asr.addEventListener("start", () => {
+            sendBack({ type: "STARTED", value: { wsaASRinstance: asr } });
+          });
 
-        // receive((event) => {
-        //   console.debug("bla");
-        //   if (event.type === "STOP") {
-        //     asr.abort();
-        //   }
-        // });
-        asr.start();
-      }),
+          // receive((event) => {
+          //   console.debug("bla");
+          //   if (event.type === "STOP") {
+          //     asr.abort();
+          //   }
+          // });
+          asr.start();
+        },
+      ),
     },
-  }
+  },
 );

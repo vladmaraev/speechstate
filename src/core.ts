@@ -2,14 +2,14 @@ import { interpret } from "xstate";
 import { machine } from "./speechstate";
 import { inspect } from "@xstate/inspect";
 
-const cr = {
+const cr: AzureCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "2e15e033f605414bbbfe26cb631ab755",
+  key: "",
 };
 
 const settings: Settings = {
-  azureCredentials: "https://tala.pratb.art/gettoken.php",
+  azureCredentials: "",
   asrDefaultCompleteTimeout: 0,
   locale: "en-US",
 };
@@ -22,8 +22,8 @@ const talaSpeechService = interpret(machine, {
 
 talaSpeechService.subscribe((state) => {
   console.debug(state.value);
-  console.debug(state.context.ttsRef);
-  console.debug(state.context.asrRef);
+  // console.debug(state.context.ttsRef);
+  // console.debug(state.context.asrRef);
 });
 
 talaSpeechService.start();

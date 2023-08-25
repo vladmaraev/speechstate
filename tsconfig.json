@@ -15,7 +15,7 @@
         "src/typings.d.ts",
         "src/index.ts",
         "src/speechstate.ts",
-        "src/test.ts",
+        "src/core.ts",
         "src/tts.ts",
         "src/asr.ts"
     ]
