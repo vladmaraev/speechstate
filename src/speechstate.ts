@@ -1,9 +1,8 @@
 import { createMachine, assign, fromPromise, sendParent } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
-// import { tdmDmMachine } from "./tdmClient";
 
-const machine = createMachine(
+const speechstate = createMachine(
   {
     types: {
       context: {} as SSContext,
@@ -103,7 +102,7 @@ const machine = createMachine(
             initial: "idle",
             entry: [
               () => console.debug("[SpSt] All ready"),
-              // sendParent({ type: "ASRTTS_READY" }),
+              sendParent({ type: "ASRTTS_READY" }),
             ],
             states: {
               idle: {
@@ -158,7 +157,7 @@ const machine = createMachine(
                     target: "idle",
                     actions: [
                       () => console.debug("[TTS→SpSt] ENDSPEECH"),
-                      // sendParent({ type: "ENDSPEECH" }),
+                      sendParent({ type: "ENDSPEECH" }),
                     ],
                   },
                 },
@@ -210,10 +209,10 @@ const machine = createMachine(
                           "[ASR→SpSt] RECOGNISED",
                           (event as any).value,
                         ),
-                      // sendParent(({ event }) => ({
-                      //   type: "RECOGNISED",
-                      //   value: (event as any).value,
-                      // })),
+                      sendParent(({ event }) => ({
+                        type: "RECOGNISED",
+                        value: (event as any).value,
+                      })),
                     ],
                     target: "idle",
                   },
@@ -258,4 +257,4 @@ const machine = createMachine(
   },
 );
 
-export { machine };
+export { speechstate };

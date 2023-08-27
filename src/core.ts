@@ -1,5 +1,5 @@
 import { interpret } from "xstate";
-import { machine } from "./speechstate";
+import { speechstate } from "./speechstate";
 
 const cr: AzureCredentials = {
   endpoint:
@@ -13,7 +13,7 @@ const settings: Settings = {
   locale: "en-US",
 };
 
-const talaSpeechService = interpret(machine, {
+const talaSpeechService = interpret(speechstate, {
   input: {
     settings: settings,
   },

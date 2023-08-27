@@ -1,5 +1,57 @@
-#+TITLE: How to run ~speechstate~
-* Create Azure account and enable speech services
+#+TITLE: SpeechState
+
+* SDK
+
+** Spawn SpeechState
+#+begin_src typescript
+  import { speechstate } from "speechstate";
+
+  // start with this action in your state chart
+  assign({
+      spstRef: ({ spawn }) => {
+          return spawn(speechstate, {
+              input: {
+                  settings: ...
+              },
+          });
+      },
+  }),
+#+end_src
+
+#+begin_src typescript
+interface AzureCredentials {
+  endpoint: string;
+  key: string;
+}
+
+interface Settings {
+  locale: string;
+  azureCredentials: string | AzureCredentials; // you can use proxy URL or full credentials
+  asrDefaultCompleteTimeout: number;
+}
+#+end_src
+
+
+** Events
+*** DM to SpeechState
+- PREPARE :: (no value)
+- SPEAK :: ~value: Agenda~
+- LISTEN :: (no value)
+- PAUSE :: (no value)
+- STOP :: (no value)
+
+#+begin_src typescript
+interface Agenda {
+  utterance: string;
+  voice?: string;
+  streamURL?: string;
+}
+#+end_src
+
+
+
+* How to run ~SpeechState~
+** Create Azure account and enable speech services
 1. Apply for free student credits
    https://azure.microsoft.com/en-us/free/students/. You should be
    able to login with your GU account.
