@@ -1,16 +1,19 @@
 import { interpret } from "xstate";
 import { speechstate } from "./speechstate";
+import { AzureCredentials, Settings } from "./types";
 
-const cr: AzureCredentials = {
+const azureCredentials: AzureCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
   key: "",
 };
 
 const settings: Settings = {
-  azureCredentials: "",
+  azureCredentials: azureCredentials,
   asrDefaultCompleteTimeout: 0,
+  asrDefaultNoInputTimeout: 5000,
   locale: "en-US",
+  ttsDefaultVoice: "en-US-DavisNeural",
 };
 
 const talaSpeechService = interpret(speechstate, {

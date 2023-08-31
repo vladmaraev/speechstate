@@ -5,18 +5,11 @@
         // "strict": true,
         "skipLibCheck": true,
         "declaration": true,
+        "declarationMap": true,
         "forceConsistentCasingInFileNames": true,
         "outDir": "./dist",
         "lib": ["dom", "es2016"],
-        "moduleResolution": "node",
-        "outDir": "./dist"
+        "moduleResolution": "node"
     },
-    "include": [
-        "src/typings.d.ts",
-        "src/index.ts",
-        "src/speechstate.ts",
-        "src/core.ts",
-        "src/tts.ts",
-        "src/asr.ts"
-    ]
+    "include": ["src/index.ts"]
 }

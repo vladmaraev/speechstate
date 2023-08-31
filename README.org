@@ -33,21 +33,43 @@ interface Settings {
 
 
 ** Events
-*** DM to SpeechState
-- PREPARE :: (no value)
-- SPEAK :: ~value: Agenda~
-- LISTEN :: (no value)
-- PAUSE :: (no value)
-- STOP :: (no value)
-
+Example action:
 #+begin_src typescript
+  ({ context }) =>
+    context.spstRef.send({
+      type: "SPEAK",
+      value: { utterance: "Hello world", voice: "en-GB-RyanNeural" },
+    });
+#+end_src
+
+*** DM to SpeechState
+- ~{ type: "PREPARE" }~  
+- ~{ type: "SPEAK"; value: Agenda }~ 
+- ~{ type: "LISTEN" }~
+- ~{ type: "CONTROL" }~
+- ~{ type: "STOP" }~
+
+
+*** SpeechState to DM
+- ~{ type: "ASR_NOINPUT" }~  
+- ~{ type: "ASR_NOINPUT" }~
+- ~{ type: "RECOGNISED"; value: Hypothesis[] }~  
+- ~{ type: "SPEAK_COMPLETE" }~ 
+- ~{ type: "ASR_STARTED" }~ 
+- ~{ type: "TTS_STARTED" }~ 
+** Types:
+#+begin_src typescript
+interface Hypothesis {
+    utterance: string;
+    confidence: number;
+}
+  
 interface Agenda {
   utterance: string;
-  voice?: string;
+  voice?: string; // defaults to "en-US-DavisNeural"
   streamURL?: string;
 }
 #+end_src
-
 
 
 * How to run ~SpeechState~

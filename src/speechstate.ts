@@ -2,6 +2,28 @@ import { createMachine, assign, fromPromise, sendParent } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
+import { Settings, Agenda, Hypothesis } from "./types";
+interface SSContext {
+  settings: Settings;
+  audioContext?: AudioContext;
+  asrRef?: any;
+  ttsRef?: any;
+}
+
+type SSEvent =
+  | { type: "PREPARE" }
+  | { type: "CONTROL" }
+  | { type: "STOP" }
+  | { type: "SPEAK"; value: Agenda }
+  | { type: "TTS_READY" }
+  | { type: "TTS_ERROR" }
+  | { type: "SPEAK_COMPLETE" }
+  | { type: "ASR_READY" }
+  | { type: "LISTEN" } // TODO parameters!
+  | { type: "ASR_STARTED" }
+  | { type: "ASR_NOINPUT" }
+  | { type: "RECOGNISED"; value: Hypothesis[] };
+
 const speechstate = createMachine(
   {
     types: {
@@ -34,7 +56,7 @@ const speechstate = createMachine(
                 ttsRef: ({ context, spawn }) => {
                   return spawn(ttsMachine, {
                     input: {
-                      ttsDefaultVoice: "en-US-DavisNeural", // todo: config defaults
+                      ttsDefaultVoice: context.settings.ttsDefaultVoice,
                       audioContext: context.audioContext,
                       azureCredentials: context.settings.azureCredentials,
                     },
@@ -45,9 +67,11 @@ const speechstate = createMachine(
                 asrRef: ({ context, spawn }) => {
                   return spawn(asrMachine, {
                     input: {
-                      asrDefaultCompleteTimeout: 0, // todo: config defaults
-                      asrDefaultNoInputTimeout: 5000,
-                      locale: "en-US",
+                      asrDefaultCompleteTimeout:
+                        context.settings.asrDefaultCompleteTimeout,
+                      asrDefaultNoInputTimeout:
+                        context.settings.asrDefaultNoInputTimeout,
+                      locale: context.settings.locale,
                       audioContext: context.audioContext,
                       azureCredentials: context.settings.azureCredentials,
                     },
@@ -79,8 +103,11 @@ const speechstate = createMachine(
             actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
             target: ".fail",
           },
-          ASR_NOINPUT_TIMEOUT: {
-            actions: () => console.debug("[ASR→SpSt] ASR_NOINPUT_TIMEOUT"),
+          ASR_NOINPUT: {
+            actions: [
+              () => console.debug("[ASR→SpSt] NOINPUT"),
+              sendParent({ type: "ASR_NOINPUT" }),
+            ],
             target: ".ready",
           },
         },
@@ -118,29 +145,20 @@ const speechstate = createMachine(
               speaking: {
                 entry: [
                   ({ event }) =>
-                    console.debug("[SpSt→TTS] START", (event as any).value),
+                    console.debug("[SpSt→TTS] SPEAK", (event as any).value),
                   ({ context, event }) =>
                     context.ttsRef.send({
-                      type: "START",
+                      type: "SPEAK",
                       value: (event as any).value,
                     }),
                 ],
                 on: {
-                  PAUSE: {
+                  CONTROL: {
                     actions: [
-                      () => console.debug("[SpSt→TTS] PAUSE"),
+                      () => console.debug("[SpSt→TTS] CONTROL"),
                       ({ context }) =>
                         context.ttsRef.send({
-                          type: "PAUSE",
-                        }),
-                    ],
-                  },
-                  CONTINUE: {
-                    actions: [
-                      () => console.debug("[SpSt→TTS] CONTINUE"),
-                      ({ context }) =>
-                        context.ttsRef.send({
-                          type: "CONTINUE",
+                          type: "CONTROL",
                         }),
                     ],
                   },
@@ -153,11 +171,11 @@ const speechstate = createMachine(
                         }),
                     ],
                   },
-                  ENDSPEECH: {
+                  SPEAK_COMPLETE: {
                     target: "idle",
                     actions: [
-                      () => console.debug("[TTS→SpSt] ENDSPEECH"),
-                      sendParent({ type: "ENDSPEECH" }),
+                      () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
+                      sendParent({ type: "SPEAK_COMPLETE" }),
                     ],
                   },
                 },
@@ -181,26 +199,14 @@ const speechstate = createMachine(
               },
               recognising: {
                 on: {
-                  PAUSE: {
+                  CONTROL: {
                     actions: [
-                      () => console.debug("[SpSt→ASR] PAUSE"),
+                      () => console.debug("[SpSt→ASR] CONTROL"),
                       ({ context }) =>
                         context.asrRef.send({
-                          type: "PAUSE",
+                          type: "CONTROL",
                         }),
                     ],
-                  },
-                  CONTINUE: {
-                    actions: [
-                      () => console.debug("[SpSt→ASR] CONTINUE"),
-                      ({ context }) =>
-                        context.asrRef.send({
-                          type: "CONTINUE",
-                        }),
-                    ],
-                  },
-                  ASR_PAUSED: {
-                    actions: () => console.debug("[ASR→SpSt] ASR_PAUSED"),
                   },
                   RECOGNISED: {
                     actions: [

@@ -6,9 +6,7 @@
     "private": true,
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
-    "files": [
-        "/dist"
-    ],
+    "files": ["/dist"],
     "dependencies": {
         "microsoft-cognitiveservices-speech-sdk": "^1.31.0",
         "web-speech-cognitive-services": "^7.1.2",
@@ -19,17 +17,10 @@
         "test": "jest --silent=false"
     },
     "eslintConfig": {
-        "extends": [
-            "react-app",
-            "react-app/jest"
-        ]
+        "extends": ["react-app", "react-app/jest"]
     },
     "browserslist": {
-        "production": [
-            ">0.2%",
-            "not dead",
-            "not op_mini all"
-        ],
+        "production": [">0.2%", "not dead", "not op_mini all"],
         "development": [
             "last 1 chrome version",
             "last 1 firefox version",

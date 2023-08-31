@@ -1,16 +1,41 @@
-import {
-  createMachine,
-  sendParent,
-  assign,
-  fromPromise,
-  fromCallback,
-} from "xstate";
+import { createMachine, sendParent, assign, fromCallback } from "xstate";
 
 import { getToken } from "./getToken";
-
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
-
 const REGION = "northeurope";
+
+import { AzureCredentials, Agenda } from "./types";
+
+interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
+  new (s: string);
+}
+
+interface TTSContext {
+  audioContext: AudioContext;
+  azureCredentials: string | AzureCredentials;
+  azureAuthorizationToken?: string;
+  ttsDefaultVoice: string;
+  ttsLexicon?: string;
+  wsaTTS?: SpeechSynthesis;
+  wsaVoice?: SpeechSynthesisVoice;
+  wsaUtt?: MySpeechSynthesisUtterance;
+  agenda?: Agenda;
+}
+
+type TTSEvent =
+  | { type: "PREPARE" }
+  | { type: "CONTROL" }
+  | { type: "STOP" }
+  | {
+      type: "READY";
+      value: {
+        wsaTTS: SpeechSynthesis;
+        wsaUtt: MySpeechSynthesisUtterance;
+      };
+    }
+  | { type: "ERROR" }
+  | { type: "SPEAK"; value: Agenda }
+  | { type: "SPEAK_COMPLETE" };
 
 export const ttsMachine = createMachine(
   {
@@ -25,10 +50,10 @@ export const ttsMachine = createMachine(
       azureCredentials: input.azureCredentials,
     }),
 
-    initial: "getToken",
+    initial: "GetToken",
     on: {
       READY: {
-        target: ".ready",
+        target: ".Ready",
         actions: [
           assign({
             wsaTTS: ({ event }) => event.value.wsaTTS,
@@ -40,16 +65,16 @@ export const ttsMachine = createMachine(
       ERROR: { actions: sendParent({ type: "TTS_ERROR" }) },
     },
     states: {
-      ready: {
+      Ready: {
         on: {
-          START: {
-            target: "speaking",
+          SPEAK: {
+            target: "Speaking",
             actions: assign({ agenda: ({ event }) => event.value }),
           },
         },
       },
-      fail: {},
-      getToken: {
+      Fail: {},
+      GetToken: {
         invoke: {
           id: "getAuthorizationToken",
           input: ({ context }) => ({
@@ -57,7 +82,7 @@ export const ttsMachine = createMachine(
           }),
           src: "getToken",
           onDone: {
-            target: "ponyfill",
+            target: "Ponyfill",
             actions: [
               assign(({ event }) => {
                 return { azureAuthorizationToken: event.output };
@@ -67,11 +92,11 @@ export const ttsMachine = createMachine(
           onError: {
             actions: ({ event }) =>
               console.error("[TTS] getToken error", event),
-            target: "fail",
+            target: "Fail",
           },
         },
       },
-      ponyfill: {
+      Ponyfill: {
         invoke: {
           id: "ponyTTS",
           src: "ponyfill",
@@ -81,19 +106,19 @@ export const ttsMachine = createMachine(
           }),
         },
       },
-      speaking: {
-        initial: "go",
+      Speaking: {
+        initial: "Go",
         on: {
           STOP: {
-            target: "ready",
+            target: "Ready",
           },
-          END: {
-            target: "ready",
+          SPEAK_COMPLETE: {
+            target: "Ready",
           },
         },
-        exit: sendParent({ type: "ENDSPEECH" }),
+        exit: sendParent({ type: "SPEAK_COMPLETE" }),
         states: {
-          go: {
+          Go: {
             invoke: {
               src: "start",
               input: ({ context }) => ({
@@ -106,13 +131,13 @@ export const ttsMachine = createMachine(
               }),
             },
             on: {
-              PAUSE: "paused",
+              CONTROL: "Paused",
             },
             exit: "ttsStop",
           },
-          paused: {
+          Paused: {
             on: {
-              CONTINUE: "go",
+              CONTROL: "Go",
             },
           },
         },
@@ -153,72 +178,23 @@ export const ttsMachine = createMachine(
         });
       }),
       start: fromCallback(({ sendBack, input }) => {
-        if ((input as any).streamURL) {
-          {
-            const stream = new EventSource((input as any).streamURL);
-            let buffer = "";
-            stream.onmessage = function (event: any) {
-              let chunk = event.data;
-              console.debug("🍰", chunk);
-              if (chunk !== "[CLEAR]") {
-                buffer = buffer + chunk;
-                if (buffer.includes("[DONE]")) {
-                  stream.close();
-                  buffer = buffer.replace("[DONE]", "");
-                  const content = wrapSSML(
-                    buffer || "",
-                    (input as any).voice,
-                    (input as any).ttsLexicon,
-                    1, // todo
-                  );
-                  const utterance = new (input as any).wsaUtt!(content);
-                  (input as any).wsaTTS.speak(utterance);
-                  console.log(`S(chunk)> ${buffer} [done speaking]`);
-                  buffer = "";
-                  utterance.onend = () => {
-                    sendBack({ type: "END" });
-                    console.debug("[TTS] END");
-                  };
-                }
-
-                const re = /(,\s)|([!.?](\s|$))/;
-                const m = buffer.match(re);
-                if (m) {
-                  const sep = m[0];
-                  const utt = buffer.split(sep)[0] + sep;
-                  buffer = buffer.split(sep).slice(1).join(sep);
-                  const content = wrapSSML(
-                    utt,
-                    (input as any).voice,
-                    (input as any).ttsLexicon,
-                    1, // todo
-                  );
-                  const utterance = new (input as any).wsaUtt!(content);
-                  console.log("S(chunk)>", utt);
-                  (input as any).wsaTTS.speak(utterance);
-                }
-              }
-            };
-          }
+        if (["", " "].includes((input as any).utterance)) {
+          console.debug("[TTS] SPEAK: ", (input as any).utterance);
+          (input as any).wsaTTS.speak("");
         } else {
-          if (["", " "].includes((input as any).utterance)) {
-            console.debug("[TTS] SPEAK: ", (input as any).utterance);
-            (input as any).wsaTTS.speak("");
-          } else {
-            console.debug("[TTS] SPEAK: ", (input as any).utterance);
-            const content = wrapSSML(
-              (input as any).utterance,
-              (input as any).voice,
-              (input as any).ttsLexicon,
-              1,
-            ); // todo speech rate;
-            const utterance = new (input as any).wsaUtt!(content);
-            utterance.addEventListener("end", () => {
-              sendBack({ type: "END" });
-              console.debug("[TTS] END");
-            });
-            (input as any).wsaTTS.speak(utterance);
-          }
+          console.debug("[TTS] SPEAK: ", (input as any).utterance);
+          const content = wrapSSML(
+            (input as any).utterance,
+            (input as any).voice,
+            (input as any).ttsLexicon,
+            1,
+          ); // todo speech rate;
+          const utterance = new (input as any).wsaUtt!(content);
+          utterance.addEventListener("end", () => {
+            sendBack({ type: "SPEAK_COMPLETE" });
+            console.debug("[TTS] SPEAK_COMPLETE");
+          });
+          (input as any).wsaTTS.speak(utterance);
         }
       }),
     },

@@ -9,8 +9,50 @@ import {
 import { getToken } from "./getToken";
 
 import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
-
 const REGION = "northeurope";
+
+import { RecogniseParameters, Hypothesis, AzureCredentials } from "./types";
+interface MySpeechRecognition extends SpeechRecognition {
+  new ();
+}
+
+interface MySpeechGrammarList extends SpeechGrammarList {
+  new ();
+}
+
+type ASREvent =
+  | {
+      type: "READY";
+      value: {
+        wsaASR: MySpeechRecognition;
+        wsaGrammarList: MySpeechGrammarList;
+      };
+    }
+  | { type: "ERROR" }
+  | { type: "NOINPUT" }
+  | { type: "CONTROL" }
+  | {
+      type: "START";
+      value?: RecogniseParameters;
+    }
+  | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
+  | { type: "STARTSPEECH" }
+  | { type: "RECOGNISED" }
+  | { type: "RESULT"; value: Hypothesis[] };
+
+interface ASRContext {
+  audioContext: AudioContext;
+  azureCredentials: string | AzureCredentials;
+  azureAuthorizationToken?: string;
+  locale: string;
+  asrDefaultNoInputTimeout: number;
+  asrDefaultCompleteTimeout: number;
+  wsaASR?: MySpeechRecognition;
+  wsaASRinstance?: MySpeechRecognition;
+  wsaGrammarList?: MySpeechGrammarList;
+  result?: Hypothesis[];
+  params?: RecogniseParameters;
+}
 
 export const asrMachine = createMachine(
   {
@@ -82,11 +124,11 @@ export const asrMachine = createMachine(
               })),
             ],
           },
-          PAUSE: {
+          CONTROL: {
             target: "Pause",
           },
           NOINPUT: {
-            actions: sendParent({ type: "ASR_NOINPUT_TIMEOUT" }),
+            actions: sendParent({ type: "ASR_NOINPUT" }),
             target: "Ready",
           },
         },
@@ -151,7 +193,7 @@ export const asrMachine = createMachine(
       Pause: {
         entry: sendParent({ type: "ASR_PAUSED" }),
         on: {
-          CONTINUE: {
+          CONTROL: {
             target: "Recognising",
             //       ///// todo? reset noInputTimeout
             //       // actions: assign({
