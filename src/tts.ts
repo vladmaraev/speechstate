@@ -35,6 +35,7 @@ type TTSEvent =
     }
   | { type: "ERROR" }
   | { type: "SPEAK"; value: Agenda }
+  | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" };
 
 export const ttsMachine = createMachine(
@@ -111,6 +112,9 @@ export const ttsMachine = createMachine(
         on: {
           STOP: {
             target: "Ready",
+          },
+          TTS_STARTED: {
+            actions: sendParent({ type: "TTS_STARTED" }),
           },
           SPEAK_COMPLETE: {
             target: "Ready",
@@ -190,10 +194,15 @@ export const ttsMachine = createMachine(
             1,
           ); // todo speech rate;
           const utterance = new (input as any).wsaUtt!(content);
+          utterance.addEventListener("start", () => {
+            sendBack({ type: "TTS_STARTED" });
+            console.debug("[TTS] TTS_STARTED");
+          });
           utterance.addEventListener("end", () => {
             sendBack({ type: "SPEAK_COMPLETE" });
             console.debug("[TTS] SPEAK_COMPLETE");
           });
+
           (input as any).wsaTTS.speak(utterance);
         }
       }),

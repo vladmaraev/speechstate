@@ -16,6 +16,7 @@ type SSEvent =
   | { type: "STOP" }
   | { type: "SPEAK"; value: Agenda }
   | { type: "TTS_READY" }
+  | { type: "TTS_STARTED" }
   | { type: "TTS_ERROR" }
   | { type: "SPEAK_COMPLETE" }
   | { type: "ASR_READY" }
@@ -169,6 +170,12 @@ const speechstate = createMachine(
                         context.ttsRef.send({
                           type: "STOP",
                         }),
+                    ],
+                  },
+                  TTS_STARTED: {
+                    actions: [
+                      () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                      sendParent({ type: "TTS_STARTED" }),
                     ],
                   },
                   SPEAK_COMPLETE: {
