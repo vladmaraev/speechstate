@@ -51,7 +51,7 @@ Example action:
 
 
 *** SpeechState to DM
-- ~{ type: "ASR_NOINPUT" }~  
+- ~{ type: "ASRTTS_READY" }~  
 - ~{ type: "ASR_NOINPUT" }~
 - ~{ type: "RECOGNISED"; value: Hypothesis[] }~  
 - ~{ type: "SPEAK_COMPLETE" }~ 

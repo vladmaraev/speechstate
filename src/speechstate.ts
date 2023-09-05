@@ -200,7 +200,10 @@ const speechstate = createMachine(
                 on: {
                   ASR_STARTED: {
                     target: "recognising",
-                    actions: () => console.debug("[ASR→SpSt] ASR_STARTED"),
+                    actions: [
+                      () => console.debug("[ASR→SpSt] ASR_STARTED"),
+                      sendParent({ type: "ASR_STARTED" }),
+                    ],
                   },
                 },
               },
