@@ -10,11 +10,14 @@ interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
   new (s: string);
 }
 
-interface TTSContext {
+interface TTSInit {
   audioContext: AudioContext;
   azureCredentials: string | AzureCredentials;
-  azureAuthorizationToken?: string;
   ttsDefaultVoice: string;
+}
+
+interface TTSContext extends TTSInit {
+  azureAuthorizationToken?: string;
   ttsLexicon?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
@@ -41,16 +44,16 @@ type TTSEvent =
 export const ttsMachine = createMachine(
   {
     id: "tts",
-    types: {
-      context: {} as TTSContext,
-      events: {} as TTSEvent,
+    types: {} as {
+      input: TTSInit;
+      context: TTSContext;
+      events: TTSEvent;
     },
     context: ({ input }) => ({
       ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
       audioContext: input.audioContext,
       azureCredentials: input.azureCredentials,
     }),
-
     initial: "GetToken",
     on: {
       READY: {
@@ -67,10 +70,54 @@ export const ttsMachine = createMachine(
     },
     states: {
       Ready: {
-        on: {
-          SPEAK: {
-            target: "Speaking",
-            actions: assign({ agenda: ({ event }) => event.value }),
+        initial: "Idle",
+        states: {
+          Idle: {
+            on: {
+              SPEAK: {
+                target: "Speaking",
+                actions: assign({ agenda: ({ event }) => event.value }),
+              },
+            },
+          },
+          Speaking: {
+            initial: "Go",
+            on: {
+              STOP: {
+                target: "Idle",
+              },
+              TTS_STARTED: {
+                actions: sendParent({ type: "TTS_STARTED" }),
+              },
+              SPEAK_COMPLETE: {
+                target: "Idle",
+              },
+            },
+            exit: sendParent({ type: "SPEAK_COMPLETE" }),
+            states: {
+              Go: {
+                invoke: {
+                  src: "start",
+                  input: ({ context }) => ({
+                    wsaTTS: context.wsaTTS,
+                    wsaUtt: context.wsaUtt,
+                    ttsLexicon: context.ttsLexicon,
+                    voice: context.agenda.voice || context.ttsDefaultVoice,
+                    // streamURL: context.agenda.streamURL,
+                    utterance: context.agenda.utterance,
+                  }),
+                },
+                on: {
+                  CONTROL: "Paused",
+                },
+                exit: "ttsStop",
+              },
+              Paused: {
+                on: {
+                  CONTROL: "Go",
+                },
+              },
+            },
           },
         },
       },
@@ -105,45 +152,6 @@ export const ttsMachine = createMachine(
             audioContext: context.audioContext,
             azureAuthorizationToken: context.azureAuthorizationToken,
           }),
-        },
-      },
-      Speaking: {
-        initial: "Go",
-        on: {
-          STOP: {
-            target: "Ready",
-          },
-          TTS_STARTED: {
-            actions: sendParent({ type: "TTS_STARTED" }),
-          },
-          SPEAK_COMPLETE: {
-            target: "Ready",
-          },
-        },
-        exit: sendParent({ type: "SPEAK_COMPLETE" }),
-        states: {
-          Go: {
-            invoke: {
-              src: "start",
-              input: ({ context }) => ({
-                wsaTTS: context.wsaTTS,
-                wsaUtt: context.wsaUtt,
-                ttsLexicon: context.ttsLexicon,
-                voice: context.agenda.voice || context.ttsDefaultVoice,
-                streamURL: context.agenda.streamURL,
-                utterance: context.agenda.utterance,
-              }),
-            },
-            on: {
-              CONTROL: "Paused",
-            },
-            exit: "ttsStop",
-          },
-          Paused: {
-            on: {
-              CONTROL: "Go",
-            },
-          },
         },
       },
     },

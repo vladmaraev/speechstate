@@ -27,12 +27,13 @@ type SSEvent =
 
 const speechstate = createMachine(
   {
-    types: {
-      context: {} as SSContext,
-      events: {} as SSEvent,
+    types: {} as {
+      input: Settings;
+      context: SSContext;
+      events: SSEvent;
     },
     context: ({ input }) => ({
-      settings: input.settings,
+      settings: input,
     }),
     id: "speechstate",
     type: "parallel",

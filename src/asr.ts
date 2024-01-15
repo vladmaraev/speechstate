@@ -40,13 +40,8 @@ type ASREvent =
   | { type: "RECOGNISED" }
   | { type: "RESULT"; value: Hypothesis[] };
 
-interface ASRContext {
-  audioContext: AudioContext;
-  azureCredentials: string | AzureCredentials;
+interface ASRContext extends ASRInit {
   azureAuthorizationToken?: string;
-  locale: string;
-  asrDefaultNoInputTimeout: number;
-  asrDefaultCompleteTimeout: number;
   wsaASR?: MySpeechRecognition;
   wsaASRinstance?: MySpeechRecognition;
   wsaGrammarList?: MySpeechGrammarList;
@@ -54,12 +49,21 @@ interface ASRContext {
   params?: RecogniseParameters;
 }
 
+interface ASRInit {
+  asrDefaultCompleteTimeout: number;
+  asrDefaultNoInputTimeout: number;
+  locale: string;
+  audioContext: AudioContext;
+  azureCredentials: string | AzureCredentials;
+}
+
 export const asrMachine = createMachine(
   {
     id: "asr",
-    types: {
-      context: {} as ASRContext,
-      events: {} as ASREvent,
+    types: {} as {
+      input: ASRInit;
+      context: ASRContext;
+      events: ASREvent;
     },
     context: ({ input }) => ({
       asrDefaultCompleteTimeout: input.asrDefaultCompleteTimeout || 0,
@@ -250,26 +254,24 @@ export const asrMachine = createMachine(
     },
     actors: {
       getToken: getToken,
-      ponyfill: fromCallback(
-        async ({ sendBack, input }: { sendBack: any; input: any }) => {
-          const { SpeechGrammarList, SpeechRecognition } =
-            createSpeechRecognitionPonyfill({
-              audioContext: input.audioContext,
-              credentials: {
-                region: REGION, // TODO
-                authorizationToken: input.azureAuthorizationToken,
-              },
-            });
-          sendBack({
-            type: "READY",
-            value: {
-              wsaASR: SpeechRecognition,
-              wsaGrammarList: SpeechGrammarList,
+      ponyfill: fromCallback(({ sendBack, input }) => {
+        const { SpeechGrammarList, SpeechRecognition } =
+          createSpeechRecognitionPonyfill({
+            audioContext: (input as any).audioContext,
+            credentials: {
+              region: REGION, // TODO
+              authorizationToken: (input as any).azureAuthorizationToken,
             },
           });
-          console.debug("[ASR] READY");
-        },
-      ),
+        sendBack({
+          type: "READY",
+          value: {
+            wsaASR: SpeechRecognition,
+            wsaGrammarList: SpeechGrammarList,
+          },
+        });
+        console.debug("[ASR] READY");
+      }),
       recStart: fromCallback(
         ({ sendBack, input }: { sendBack: any; input: any }) => {
           let asr = new input.wsaASR!();

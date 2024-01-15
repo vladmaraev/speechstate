@@ -1,4 +1,4 @@
-import { interpret } from "xstate";
+import { createActor, createMachine, assign } from "xstate";
 import { speechstate } from "./speechstate";
 import { AzureCredentials, Settings } from "./types";
 
@@ -16,20 +16,15 @@ const settings: Settings = {
   ttsDefaultVoice: "en-US-DavisNeural",
 };
 
-const talaSpeechService = interpret(speechstate, {
-  input: {
-    settings: settings,
-  },
+const speechMachine = createMachine({
+  entry: assign({
+    ssRef: ({ spawn }) => spawn(speechstate, { input: settings, id: "ss" }),
+  }),
 });
 
-talaSpeechService.subscribe((state) => {
-  console.debug(state.value);
-  // console.debug(state.context.ttsRef);
-  // console.debug(state.context.asrRef);
-});
+const speechService = createActor(speechMachine);
 
-talaSpeechService.start();
+speechService.start();
+speechService.getSnapshot().context.ssRef.send({ type: "PREPARE" });
 
-talaSpeechService.send({ type: "PREPARE" });
-
-(window as any).talaSpeechService = talaSpeechService;
+(window as any).speechService = speechService;
