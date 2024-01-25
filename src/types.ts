@@ -4,11 +4,11 @@ export interface AzureCredentials {
 }
 
 export interface Settings {
-  locale: string;
+  locale?: string;
   azureCredentials: string | AzureCredentials;
-  asrDefaultCompleteTimeout: number;
-  asrDefaultNoInputTimeout: number;
-  ttsDefaultVoice: string;
+  asrDefaultCompleteTimeout?: number;
+  asrDefaultNoInputTimeout?: number;
+  ttsDefaultVoice?: string;
 }
 
 export interface Agenda {

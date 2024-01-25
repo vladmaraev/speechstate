@@ -38,21 +38,21 @@ const speechstate = createMachine(
     id: "speechstate",
     type: "parallel",
     states: {
-      asrTtsSpawner: {
-        initial: "idle",
+      AsrTtsSpawner: {
+        initial: "Idle",
         states: {
-          idle: { on: { PREPARE: "createAudioContext" } },
-          createAudioContext: {
+          Idle: { on: { PREPARE: "CreateAudioContext" } },
+          CreateAudioContext: {
             invoke: {
               id: "createAudioContext",
               src: "audioContext",
               onDone: {
-                target: "spawn",
+                target: "Spawn",
                 actions: assign({ audioContext: ({ event }) => event.output }),
               },
             },
           },
-          spawn: {
+          Spawn: {
             entry: [
               assign({
                 ttsRef: ({ context, spawn }) => {
@@ -83,68 +83,68 @@ const speechstate = createMachine(
             ],
             after: {
               300000: {
-                target: "spawn",
+                target: "Spawn",
               },
             },
           },
         },
       },
-      asrTtsManager: {
-        initial: "initialize",
+      AsrTtsManager: {
+        initial: "Initialize",
         on: {
           TTS_READY: {
             actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-            target: ".preReady",
+            target: ".PreReady",
           },
           ASR_READY: {
             actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-            target: ".preReady",
+            target: ".PreReady",
           },
           // ASR_ERROR not implemented
           TTS_ERROR: {
             actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
-            target: ".fail",
+            target: ".Fail",
           },
           ASR_NOINPUT: {
             actions: [
               () => console.debug("[ASR→SpSt] NOINPUT"),
               sendParent({ type: "ASR_NOINPUT" }),
             ],
-            target: ".ready",
+            target: ".Ready",
           },
         },
         states: {
-          initialize: {},
-          preReady: {
+          Initialize: {},
+          PreReady: {
             on: {
               TTS_READY: {
                 actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-                target: "ready",
+                target: "Ready",
               },
               ASR_READY: {
                 actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-                target: "ready",
+                target: "Ready",
               },
             },
           },
-          ready: {
-            initial: "idle",
+          Ready: {
+            initial: "Idle",
             entry: [
               () => console.debug("[SpSt] All ready"),
               sendParent({ type: "ASRTTS_READY" }),
             ],
             states: {
-              idle: {
+              Idle: {
                 on: {
-                  LISTEN: { target: "waitForRecogniser" },
+                  LISTEN: { target: "WaitForRecogniser" },
                   SPEAK: [
                     {
-                      target: "speaking",
+                      target: "Speaking",
                     },
                   ],
                 },
               },
-              speaking: {
+              Speaking: {
                 entry: [
                   ({ event }) =>
                     console.debug("[SpSt→TTS] SPEAK", (event as any).value),
@@ -180,7 +180,7 @@ const speechstate = createMachine(
                     ],
                   },
                   SPEAK_COMPLETE: {
-                    target: "idle",
+                    target: "Idle",
                     actions: [
                       () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
                       sendParent({ type: "SPEAK_COMPLETE" }),
@@ -188,7 +188,7 @@ const speechstate = createMachine(
                   },
                 },
               },
-              waitForRecogniser: {
+              WaitForRecogniser: {
                 entry: [
                   ({ event }) =>
                     console.debug("[SpSt→ASR] START", (event as any).value),
@@ -200,7 +200,7 @@ const speechstate = createMachine(
                 ],
                 on: {
                   ASR_STARTED: {
-                    target: "recognising",
+                    target: "Recognising",
                     actions: [
                       () => console.debug("[ASR→SpSt] ASR_STARTED"),
                       sendParent({ type: "ASR_STARTED" }),
@@ -208,7 +208,7 @@ const speechstate = createMachine(
                   },
                 },
               },
-              recognising: {
+              Recognising: {
                 on: {
                   CONTROL: {
                     actions: [
@@ -231,13 +231,13 @@ const speechstate = createMachine(
                         value: (event as any).value,
                       })),
                     ],
-                    target: "idle",
+                    target: "Idle",
                   },
                 },
               },
             },
           },
-          fail: {},
+          Fail: {},
         },
       },
     },
