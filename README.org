@@ -19,16 +19,19 @@
 #+end_src
 
 #+begin_src typescript
-interface AzureCredentials {
-  endpoint: string;
-  key: string;
-}
+  interface AzureCredentials {
+    endpoint: string;
+    key: string;
+  }
 
-interface Settings {
-  locale: string;
-  azureCredentials: string | AzureCredentials; // you can use proxy URL or full credentials
-  asrDefaultCompleteTimeout: number;
-}
+  interface Settings {
+    locale?: string;
+    azureCredentials: string | AzureCredentials;
+    asrDefaultCompleteTimeout?: number;
+    asrDefaultNoInputTimeout?: number;
+    ttsDefaultVoice?: string;
+    speechRecognitionEndpointId?: string;
+  }
 #+end_src
 
 

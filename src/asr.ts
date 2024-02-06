@@ -55,6 +55,7 @@ interface ASRInit {
   locale: string;
   audioContext: AudioContext;
   azureCredentials: string | AzureCredentials;
+  speechRecognitionEndpointId?: string;
 }
 
 export const asrMachine = createMachine(
@@ -71,6 +72,7 @@ export const asrMachine = createMachine(
       locale: input.locale || "en-US",
       audioContext: input.audioContext,
       azureCredentials: input.azureCredentials,
+      speechRecognitionEndpointId: input.speechRecognitionEndpointId,
     }),
 
     initial: "GetToken",
@@ -240,6 +242,7 @@ export const asrMachine = createMachine(
             audioContext: context.audioContext,
             azureAuthorizationToken: context.azureAuthorizationToken,
             locale: context.locale,
+            speechRecognitionEndpointId: context.speechRecognitionEndpointId,
           }),
         },
       },
@@ -258,6 +261,8 @@ export const asrMachine = createMachine(
         const { SpeechGrammarList, SpeechRecognition } =
           createSpeechRecognitionPonyfill({
             audioContext: (input as any).audioContext,
+            speechRecognitionEndpointId: (input as any)
+              .speechRecognitionEndpointId,
             credentials: {
               region: REGION, // TODO
               authorizationToken: (input as any).azureAuthorizationToken,
@@ -270,7 +275,7 @@ export const asrMachine = createMachine(
             wsaGrammarList: SpeechGrammarList,
           },
         });
-        console.debug("[ASR] READY");
+        console.debug("[ASR] READY", input);
       }),
       recStart: fromCallback(
         ({ sendBack, input }: { sendBack: any; input: any }) => {

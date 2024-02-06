@@ -76,6 +76,8 @@ const speechstate = createMachine(
                       locale: context.settings.locale,
                       audioContext: context.audioContext,
                       azureCredentials: context.settings.azureCredentials,
+                      speechRecognitionEndpointId:
+                        context.settings.speechRecognitionEndpointId,
                     },
                   });
                 },

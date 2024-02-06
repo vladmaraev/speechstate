@@ -9,6 +9,7 @@ export interface Settings {
   asrDefaultCompleteTimeout?: number;
   asrDefaultNoInputTimeout?: number;
   ttsDefaultVoice?: string;
+  speechRecognitionEndpointId?: string;
 }
 
 export interface Agenda {
