@@ -1,11 +1,24 @@
-export interface AzureCredentials {
+export interface AzureSpeechCredentials {
   endpoint: string;
   key: string;
 }
 
+/**
+ * @deprecated use `AzureSpeechCredentials` instead
+ */
+export interface AzureCredentials extends AzureSpeechCredentials {}
+
+export interface AzureLanguageCredentials {
+  endpoint: string;
+  key: string;
+  projectName: string;
+  deploymentName: string;
+}
+
 export interface Settings {
   locale?: string;
-  azureCredentials: string | AzureCredentials;
+  azureCredentials: string | AzureCredentials | AzureSpeechCredentials;
+  azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
   asrDefaultNoInputTimeout?: number;
   ttsDefaultVoice?: string;
@@ -28,4 +41,5 @@ export interface RecogniseParameters {
   completeTimeout?: number;
   locale?: string;
   hints?: string[];
+  nlu?: boolean | AzureLanguageCredentials;
 }

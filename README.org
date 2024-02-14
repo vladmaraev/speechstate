@@ -27,6 +27,7 @@
   interface Settings {
     locale?: string;
     azureCredentials: string | AzureCredentials;
+    azureLanguageCredentials?: AzureLanguageCredentials;
     asrDefaultCompleteTimeout?: number;
     asrDefaultNoInputTimeout?: number;
     ttsDefaultVoice?: string;
@@ -48,7 +49,7 @@ Example action:
 *** DM to SpeechState
 - ~{ type: "PREPARE" }~  
 - ~{ type: "SPEAK"; value: Agenda }~ 
-- ~{ type: "LISTEN" }~
+- ~{ type: "LISTEN"; value?: RecogniseParameters }~
 - ~{ type: "CONTROL" }~
 - ~{ type: "STOP" }~
 
@@ -56,22 +57,38 @@ Example action:
 *** SpeechState to DM
 - ~{ type: "ASRTTS_READY" }~  
 - ~{ type: "ASR_NOINPUT" }~
-- ~{ type: "RECOGNISED"; value: Hypothesis[] }~  
+- ~{ type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }~  
 - ~{ type: "SPEAK_COMPLETE" }~ 
 - ~{ type: "ASR_STARTED" }~ 
 - ~{ type: "TTS_STARTED" }~ 
 ** Types:
 #+begin_src typescript
-interface Hypothesis {
+  interface Hypothesis {
+      utterance: string;
+      confidence: number;
+  }
+
+  interface Agenda {
     utterance: string;
-    confidence: number;
-}
-  
-interface Agenda {
-  utterance: string;
-  voice?: string; // defaults to "en-US-DavisNeural"
-  streamURL?: string;
-}
+    voice?: string; // defaults to "en-US-DavisNeural"
+    streamURL?: string;
+  }
+
+  interface RecogniseParameters {
+    noInputTimeout?: number;
+    completeTimeout?: number;
+    locale?: string;
+    hints?: string[];
+    nlu?: boolean | AzureLanguageCredentials;
+  }
+
+  interface AzureLanguageCredentials {
+    endpoint: string;
+    key: string;
+    projectName: string;
+    deploymentName: string;
+  }
+
 #+end_src
 
 

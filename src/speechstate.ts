@@ -2,7 +2,7 @@ import { createMachine, assign, fromPromise, sendParent } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
-import { Settings, Agenda, Hypothesis } from "./types";
+import { Settings, Agenda, Hypothesis, RecogniseParameters } from "./types";
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
@@ -20,10 +20,10 @@ type SSEvent =
   | { type: "TTS_ERROR" }
   | { type: "SPEAK_COMPLETE" }
   | { type: "ASR_READY" }
-  | { type: "LISTEN" } // TODO parameters!
+  | { type: "LISTEN"; value: RecogniseParameters } // TODO parameters!
   | { type: "ASR_STARTED" }
   | { type: "ASR_NOINPUT" }
-  | { type: "RECOGNISED"; value: Hypothesis[] };
+  | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any };
 
 const speechstate = createMachine(
   {
@@ -76,6 +76,8 @@ const speechstate = createMachine(
                       locale: context.settings.locale,
                       audioContext: context.audioContext,
                       azureCredentials: context.settings.azureCredentials,
+                      azureLanguageCredentials:
+                        context.settings.azureLanguageCredentials,
                       speechRecognitionEndpointId:
                         context.settings.speechRecognitionEndpointId,
                     },
@@ -227,10 +229,12 @@ const speechstate = createMachine(
                         console.debug(
                           "[ASR→SpSt] RECOGNISED",
                           (event as any).value,
+                          (event as any).nluValue,
                         ),
                       sendParent(({ event }) => ({
                         type: "RECOGNISED",
                         value: (event as any).value,
+                        nluValue: (event as any).nluValue,
                       })),
                     ],
                     target: "Idle",
