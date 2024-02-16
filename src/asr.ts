@@ -211,7 +211,7 @@ export const asrMachine = setup({
       on: {
         START: {
           target: "Recognising",
-          actions: assign({ params: ({ event }) => event.value }),
+          actions: assign({ params: ({ event }) => event.value || {} }),
         },
       },
     },

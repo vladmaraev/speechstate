@@ -10,20 +10,29 @@ interface SSContext {
   ttsRef?: any;
 }
 
-type SSEvent =
+/** events sent to the spawned `speechstate` machine **/
+type SSEventExtIn =
   | { type: "PREPARE" }
   | { type: "CONTROL" }
   | { type: "STOP" }
   | { type: "SPEAK"; value: Agenda }
-  | { type: "TTS_READY" }
-  | { type: "TTS_STARTED" }
-  | { type: "TTS_ERROR" }
-  | { type: "SPEAK_COMPLETE" }
-  | { type: "ASR_READY" }
-  | { type: "LISTEN"; value: RecogniseParameters } // TODO parameters!
-  | { type: "ASR_STARTED" }
+  | { type: "LISTEN"; value: RecogniseParameters };
+
+/** for sendParent, not type-checked */
+type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
+  | { type: "ASRTTS_READY" }
+  | { type: "ASR_STARTED" }
+  | { type: "TTS_STARTED" }
+  | { type: "SPEAK_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any };
+
+type SSEventIntIn =
+  | { type: "TTS_READY" }
+  | { type: "ASR_READY" }
+  | { type: "TTS_ERROR" };
+
+type SSEvent = SSEventIntIn | SSEventExtIn | SSEventExtOut;
 
 const speechstate = createMachine(
   {
