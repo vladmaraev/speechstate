@@ -121,7 +121,7 @@ Example action:
   DM -> SS : PREPARE
   SS -> DM : ASRTTS_READY
   hnote across: Speech Synthesis 
-  DM -> SS : LISTEN
+  DM -> SS : SPEAK
   activate SS
   SS --> DM : TTS_STARTED
   return SPEAK_COMPLETE
