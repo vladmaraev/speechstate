@@ -232,6 +232,16 @@ const speechstate = createMachine(
                         }),
                     ],
                   },
+                  STOP: {
+                    target: "Idle",
+                    actions: [
+                      () => console.debug("[SpSt→ASR] STOP"),
+                      ({ context }) =>
+                        context.asrRef.send({
+                          type: "STOP",
+                        }),
+                    ],
+                  },
                   RECOGNISED: {
                     actions: [
                       ({ event }) =>

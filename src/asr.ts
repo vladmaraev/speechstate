@@ -257,6 +257,9 @@ export const asrMachine = setup({
         CONTROL: {
           target: "Pause",
         },
+        STOP: {
+          target: "Ready",
+        },
         NOINPUT: {
           actions: sendParent({ type: "ASR_NOINPUT" }),
           target: "Ready",

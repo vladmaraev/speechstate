@@ -5,9 +5,9 @@ import {
   AzureSpeechCredentials,
   Settings,
 } from "./types";
-import { createBrowserInspector } from "@statelyai/inspect";
+import { createSkyInspector } from "@statelyai/inspect";
 
-const { inspect } = createBrowserInspector();
+const { inspect } = createSkyInspector();
 
 const azureSpeechCredentials: AzureSpeechCredentials = {
   endpoint:
