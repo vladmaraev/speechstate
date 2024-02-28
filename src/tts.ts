@@ -1,4 +1,4 @@
-import { createMachine, sendParent, assign, fromCallback } from "xstate";
+import { setup, sendParent, assign, fromCallback } from "xstate";
 
 import { getToken } from "./getToken";
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
@@ -41,188 +41,208 @@ type TTSEvent =
   | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" };
 
-export const ttsMachine = createMachine(
-  {
-    id: "tts",
-    types: {} as {
-      input: TTSInit;
-      context: TTSContext;
-      events: TTSEvent;
+export const ttsMachine = setup({
+  types: {} as {
+    input: TTSInit;
+    context: TTSContext;
+    events: TTSEvent;
+  },
+  actions: {
+    ttsStop: ({ context }) => {
+      context.wsaTTS!.cancel();
     },
-    context: ({ input }) => ({
-      ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
-      audioContext: input.audioContext,
-      azureCredentials: input.azureCredentials,
+  },
+  actors: {
+    getToken: getToken,
+    createEventsFromStream: fromCallback(
+      ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
+        const stream = new EventSource(input.stream);
+        stream.onmessage = function (event: MessageEvent) {
+          console.log(JSON.parse(event.data));
+          sendBack(JSON.parse(event.data));
+        };
+      }
+    ),
+    ponyfill: fromCallback(({ sendBack, input }) => {
+      const ponyfill = createSpeechSynthesisPonyfill({
+        audioContext: (input as any).audioContext,
+        credentials: {
+          region: REGION, // TODO
+          authorizationToken: (input as any).azureAuthorizationToken,
+        },
+      });
+      const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
+      const tts = speechSynthesis;
+      const ttsUtterance = SpeechSynthesisUtterance;
+      tts.addEventListener("voiceschanged", () => {
+        const voices = tts.getVoices();
+        if (voices.length > 0) {
+          console.debug("[TTS] READY");
+          sendBack({
+            type: "READY",
+            value: { wsaTTS: tts, wsaUtt: ttsUtterance },
+          });
+        } else {
+          console.error("[TTS] No voices available");
+          sendBack({ type: "ERROR" });
+        }
+      });
     }),
-    initial: "GetToken",
-    on: {
-      READY: {
-        target: ".Ready",
-        actions: [
-          assign({
-            wsaTTS: ({ event }) => event.value.wsaTTS,
-            wsaUtt: ({ event }) => event.value.wsaUtt,
-          }),
-          sendParent({ type: "TTS_READY" }),
-        ],
-      },
-      ERROR: { actions: sendParent({ type: "TTS_ERROR" }) },
+    start: fromCallback(({ sendBack, input }) => {
+      if (["", " "].includes((input as any).utterance)) {
+        console.debug("[TTS] SPEAK: ", (input as any).utterance);
+        (input as any).wsaTTS.speak("");
+      } else {
+        console.debug("[TTS] SPEAK: ", (input as any).utterance);
+        const content = wrapSSML(
+          (input as any).utterance,
+          (input as any).voice,
+          (input as any).ttsLexicon,
+          1
+        ); // todo speech rate;
+        const utterance = new (input as any).wsaUtt!(content);
+        utterance.addEventListener("start", () => {
+          sendBack({ type: "TTS_STARTED" });
+          console.debug("[TTS] TTS_STARTED");
+        });
+        utterance.addEventListener("end", () => {
+          sendBack({ type: "SPEAK_COMPLETE" });
+          console.debug("[TTS] SPEAK_COMPLETE");
+        });
+
+        (input as any).wsaTTS.speak(utterance);
+      }
+    }),
+  },
+}).createMachine({
+  id: "tts",
+  context: ({ input }) => ({
+    ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
+    audioContext: input.audioContext,
+    azureCredentials: input.azureCredentials,
+  }),
+  initial: "GetToken",
+  on: {
+    READY: {
+      target: ".Ready",
+      actions: [
+        assign({
+          wsaTTS: ({ event }) => event.value.wsaTTS,
+          wsaUtt: ({ event }) => event.value.wsaUtt,
+        }),
+        sendParent({ type: "TTS_READY" }),
+      ],
     },
-    states: {
-      Ready: {
-        initial: "Idle",
-        states: {
-          Idle: {
-            on: {
-              SPEAK: {
+    ERROR: { actions: sendParent({ type: "TTS_ERROR" }) },
+  },
+  states: {
+    Ready: {
+      initial: "Idle",
+      states: {
+        Idle: {
+          on: {
+            SPEAK: [
+              {
+                target: "BufferedSpeaker",
+                guard: ({ event }) => !!event.value.stream,
+                actions: assign({ agenda: ({ event }) => event.value }),
+              },
+              {
                 target: "Speaking",
                 actions: assign({ agenda: ({ event }) => event.value }),
               },
-            },
-          },
-          Speaking: {
-            initial: "Go",
-            on: {
-              STOP: {
-                target: "Idle",
-              },
-              TTS_STARTED: {
-                actions: sendParent({ type: "TTS_STARTED" }),
-              },
-              SPEAK_COMPLETE: {
-                target: "Idle",
-              },
-            },
-            exit: sendParent({ type: "SPEAK_COMPLETE" }),
-            states: {
-              Go: {
-                invoke: {
-                  src: "start",
-                  input: ({ context }) => ({
-                    wsaTTS: context.wsaTTS,
-                    wsaUtt: context.wsaUtt,
-                    ttsLexicon: context.ttsLexicon,
-                    voice: context.agenda.voice || context.ttsDefaultVoice,
-                    // streamURL: context.agenda.streamURL,
-                    utterance: context.agenda.utterance,
-                  }),
-                },
-                on: {
-                  CONTROL: "Paused",
-                },
-                exit: "ttsStop",
-              },
-              Paused: {
-                on: {
-                  CONTROL: "Go",
-                },
-              },
-            },
-          },
-        },
-      },
-      Fail: {},
-      GetToken: {
-        invoke: {
-          id: "getAuthorizationToken",
-          input: ({ context }) => ({
-            credentials: context.azureCredentials,
-          }),
-          src: "getToken",
-          onDone: {
-            target: "Ponyfill",
-            actions: [
-              assign(({ event }) => {
-                return { azureAuthorizationToken: event.output };
-              }),
             ],
           },
-          onError: {
-            actions: ({ event }) =>
-              console.error("[TTS] getToken error", event),
-            target: "Fail",
+        },
+        BufferedSpeaker: {
+          invoke: {
+            id: "createEventsFromStream",
+            src: "createEventsFromStream",
+            input: ({ context }) => context.agenda,
           },
         },
-      },
-      Ponyfill: {
-        invoke: {
-          id: "ponyTTS",
-          src: "ponyfill",
-          input: ({ context }) => ({
-            audioContext: context.audioContext,
-            azureAuthorizationToken: context.azureAuthorizationToken,
-          }),
-        },
-      },
-    },
-  },
-  {
-    actions: {
-      ttsStop: ({ context }) => {
-        context.wsaTTS!.cancel();
-      },
-    },
-    actors: {
-      getToken: getToken,
-      ponyfill: fromCallback(({ sendBack, input }) => {
-        const ponyfill = createSpeechSynthesisPonyfill({
-          audioContext: (input as any).audioContext,
-          credentials: {
-            region: REGION, // TODO
-            authorizationToken: (input as any).azureAuthorizationToken,
-          },
-        });
-        const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
-        const tts = speechSynthesis;
-        const ttsUtterance = SpeechSynthesisUtterance;
-        tts.addEventListener("voiceschanged", () => {
-          const voices = tts.getVoices();
-          if (voices.length > 0) {
-            console.debug("[TTS] READY");
-            sendBack({
-              type: "READY",
-              value: { wsaTTS: tts, wsaUtt: ttsUtterance },
-            });
-          } else {
-            console.error("[TTS] No voices available");
-            sendBack({ type: "ERROR" });
-          }
-        });
-      }),
-      start: fromCallback(({ sendBack, input }) => {
-        if (["", " "].includes((input as any).utterance)) {
-          console.debug("[TTS] SPEAK: ", (input as any).utterance);
-          (input as any).wsaTTS.speak("");
-        } else {
-          console.debug("[TTS] SPEAK: ", (input as any).utterance);
-          const content = wrapSSML(
-            (input as any).utterance,
-            (input as any).voice,
-            (input as any).ttsLexicon,
-            1,
-          ); // todo speech rate;
-          const utterance = new (input as any).wsaUtt!(content);
-          utterance.addEventListener("start", () => {
-            sendBack({ type: "TTS_STARTED" });
-            console.debug("[TTS] TTS_STARTED");
-          });
-          utterance.addEventListener("end", () => {
-            sendBack({ type: "SPEAK_COMPLETE" });
-            console.debug("[TTS] SPEAK_COMPLETE");
-          });
 
-          (input as any).wsaTTS.speak(utterance);
-        }
-      }),
+        Speaking: {
+          initial: "Go",
+          on: {
+            STOP: {
+              target: "Idle",
+            },
+            TTS_STARTED: {
+              actions: sendParent({ type: "TTS_STARTED" }),
+            },
+            SPEAK_COMPLETE: {
+              target: "Idle",
+            },
+          },
+          exit: sendParent({ type: "SPEAK_COMPLETE" }),
+          states: {
+            Go: {
+              invoke: {
+                src: "start",
+                input: ({ context }) => ({
+                  wsaTTS: context.wsaTTS,
+                  wsaUtt: context.wsaUtt,
+                  ttsLexicon: context.ttsLexicon,
+                  voice: context.agenda.voice || context.ttsDefaultVoice,
+                  // streamURL: context.agenda.streamURL,
+                  utterance: context.agenda.utterance,
+                }),
+              },
+              on: {
+                CONTROL: "Paused",
+              },
+              exit: "ttsStop",
+            },
+            Paused: {
+              on: {
+                CONTROL: "Go",
+              },
+            },
+          },
+        },
+      },
+    },
+    Fail: {},
+    GetToken: {
+      invoke: {
+        id: "getAuthorizationToken",
+        input: ({ context }) => ({
+          credentials: context.azureCredentials,
+        }),
+        src: "getToken",
+        onDone: {
+          target: "Ponyfill",
+          actions: [
+            assign(({ event }) => {
+              return { azureAuthorizationToken: event.output };
+            }),
+          ],
+        },
+        onError: {
+          actions: ({ event }) => console.error("[TTS] getToken error", event),
+          target: "Fail",
+        },
+      },
+    },
+    Ponyfill: {
+      invoke: {
+        id: "ponyTTS",
+        src: "ponyfill",
+        input: ({ context }) => ({
+          audioContext: context.audioContext,
+          azureAuthorizationToken: context.azureAuthorizationToken,
+        }),
+      },
     },
   },
-);
+});
 
 const wrapSSML = (
   text: string,
   voice: string,
   lexicon: string,
-  speechRate: number,
+  speechRate: number
 ): string => {
   let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}">`;
   if (lexicon) {

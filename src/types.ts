@@ -28,7 +28,7 @@ export interface Settings {
 export interface Agenda {
   utterance: string;
   voice?: string;
-  stream?: ReadableStream<string>;
+  stream?: string;
 }
 
 export interface Hypothesis {
