@@ -1,10 +1,10 @@
-import { setup, sendParent, assign, fromCallback } from "xstate";
+import { setup, sendParent, assign, fromCallback, stateIn } from "xstate";
 
 import { getToken } from "./getToken";
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
 const REGION = "northeurope";
 
-import { AzureCredentials, Agenda } from "./types";
+import { AzureSpeechCredentials, Agenda } from "./types";
 
 interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
   new (s: string);
@@ -12,7 +12,7 @@ interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
 
 interface TTSInit {
   audioContext: AudioContext;
-  azureCredentials: string | AzureCredentials;
+  azureCredentials: string | AzureSpeechCredentials;
   ttsDefaultVoice: string;
 }
 
@@ -23,6 +23,8 @@ interface TTSContext extends TTSInit {
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: MySpeechSynthesisUtterance;
   agenda?: Agenda;
+  buffer?: string;
+  utteranceFromStream?: string;
 }
 
 type TTSEvent =
@@ -39,7 +41,11 @@ type TTSEvent =
   | { type: "ERROR" }
   | { type: "SPEAK"; value: Agenda }
   | { type: "TTS_STARTED" }
+  | { type: "STREAMING_CHUNK"; value: string }
+  | { type: "STREAMING_DONE" }
   | { type: "SPEAK_COMPLETE" };
+
+const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
 export const ttsMachine = setup({
   types: {} as {
@@ -51,6 +57,15 @@ export const ttsMachine = setup({
     ttsStop: ({ context }) => {
       context.wsaTTS!.cancel();
     },
+    addFiller: assign(({ context }) => {
+      const spaceIndex = context.buffer.lastIndexOf(" ");
+      return {
+        buffer:
+          context.buffer.substring(0, spaceIndex) +
+          " um," +
+          context.buffer.substring(spaceIndex),
+      };
+    }),
   },
   actors: {
     getToken: getToken,
@@ -114,12 +129,25 @@ export const ttsMachine = setup({
       }
     }),
   },
+  guards: {
+    bufferContainsUtterancePartReadyToBeSpoken: ({ context }) => {
+      const m = context.buffer.match(UTTERANCE_CHUNK_REGEX);
+
+      return !!m;
+    },
+  },
+  delays: {
+    FILLER_DELAY: ({ context }) => {
+      return context.agenda.fillerDelay;
+    },
+  },
 }).createMachine({
   id: "tts",
   context: ({ input }) => ({
     ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
+    buffer: "",
   }),
   initial: "GetToken",
   on: {
@@ -145,7 +173,12 @@ export const ttsMachine = setup({
               {
                 target: "BufferedSpeaker",
                 guard: ({ event }) => !!event.value.stream,
-                actions: assign({ agenda: ({ event }) => event.value }),
+                actions: assign({
+                  agenda: ({ event }) =>
+                    event.value.fillerDelay
+                      ? event.value
+                      : { ...event.value, fillerDelay: 500 },
+                }),
               },
               {
                 target: "Speaking",
@@ -155,10 +188,152 @@ export const ttsMachine = setup({
           },
         },
         BufferedSpeaker: {
+          type: "parallel",
           invoke: {
             id: "createEventsFromStream",
             src: "createEventsFromStream",
             input: ({ context }) => context.agenda,
+          },
+          on: {
+            STOP: {
+              target: "Idle",
+            },
+            SPEAK_COMPLETE: [
+              {
+                guard: stateIn("#BufferingDone"),
+                target: "Idle",
+                actions: sendParent({ type: "SPEAK_COMPLETE" }),
+              },
+            ],
+          },
+          states: {
+            Buffer: {
+              initial: "BufferIdle",
+              states: {
+                BufferIdle: {
+                  id: "BufferIdle",
+                  on: {
+                    STREAMING_CHUNK: {
+                      target: "Buffering",
+                    },
+                  },
+                },
+                Buffering: {
+                  id: "Buffering",
+                  on: {
+                    STREAMING_CHUNK: [
+                      {
+                        target: "Buffering",
+                        reenter: true,
+                      },
+                    ],
+                    STREAMING_DONE: [
+                      {
+                        target: "BufferingDone",
+                      },
+                    ],
+                  },
+                  entry: [
+                    assign({
+                      buffer: ({ context, event }) =>
+                        context.buffer + (event as any).value,
+                    }),
+                  ],
+                },
+                BufferingDone: {
+                  id: "BufferingDone",
+                },
+              },
+            },
+            Speaker: {
+              initial: "SpeakingIdle",
+              states: {
+                SpeakingIdle: {
+                  always: [
+                    {
+                      target: "Speak",
+                      guard: stateIn("#BufferingDone"),
+                      actions: assign({
+                        utteranceFromStream: ({ context }) => context.buffer,
+                      }),
+                    },
+                    {
+                      target: "PrepareSpeech",
+                      guard: "bufferContainsUtterancePartReadyToBeSpoken",
+                    },
+                  ],
+                  after: {
+                    FILLER_DELAY: {
+                      target: "SpeakingIdle",
+                      reenter: true,
+                      actions: "addFiller",
+                      guard: ({ context }) => context.buffer.includes(" "),
+                    },
+                  },
+                },
+                PrepareSpeech: {
+                  entry: [
+                    assign(({ context }) => {
+                      let utterancePart;
+                      let restOfBuffer;
+                      const match = context.buffer.match(UTTERANCE_CHUNK_REGEX);
+                      utterancePart = match![0];
+                      restOfBuffer = context.buffer.substring(
+                        utterancePart.length
+                      );
+
+                      return {
+                        buffer: restOfBuffer,
+                        utteranceFromStream: utterancePart,
+                      };
+                    }),
+                  ],
+                  always: [
+                    {
+                      target: "Speak",
+                    },
+                  ],
+                },
+                Speak: {
+                  initial: "Go",
+                  on: {
+                    TTS_STARTED: {
+                      actions: sendParent({ type: "TTS_STARTED" }),
+                    },
+                    SPEAK_COMPLETE: [
+                      {
+                        guard: stateIn("#Buffering"),
+                        target: "SpeakingIdle",
+                      },
+                    ],
+                  },
+                  states: {
+                    Go: {
+                      invoke: {
+                        src: "start",
+                        input: ({ context }) => ({
+                          wsaTTS: context.wsaTTS,
+                          wsaUtt: context.wsaUtt,
+                          ttsLexicon: context.ttsLexicon,
+                          voice:
+                            context.agenda.voice || context.ttsDefaultVoice,
+                          utterance: context.utteranceFromStream,
+                        }),
+                      },
+                      on: {
+                        CONTROL: "Paused",
+                      },
+                      exit: "ttsStop",
+                    },
+                    Paused: {
+                      on: {
+                        CONTROL: "Go",
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
 

@@ -29,6 +29,7 @@ export interface Agenda {
   utterance: string;
   voice?: string;
   stream?: string;
+  fillerDelay?: number;
 }
 
 export interface Hypothesis {
