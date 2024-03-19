@@ -1,4 +1,10 @@
-import { createMachine, assign, fromPromise, sendParent } from "xstate";
+import {
+  createMachine,
+  assign,
+  fromPromise,
+  sendParent,
+  stopChild,
+} from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
@@ -49,6 +55,9 @@ const speechstate = createMachine(
     states: {
       AsrTtsSpawner: {
         initial: "Idle",
+        on: {
+          STOP: { target: "Stopped", actions: assign({ audioContext: null }) },
+        },
         states: {
           Idle: { on: { PREPARE: "CreateAudioContext" } },
           CreateAudioContext: {
@@ -66,6 +75,7 @@ const speechstate = createMachine(
               assign({
                 ttsRef: ({ context, spawn }) => {
                   return spawn(ttsMachine, {
+                    id: "ttsRef",
                     input: {
                       ttsDefaultVoice: context.settings.ttsDefaultVoice,
                       audioContext: context.audioContext,
@@ -77,6 +87,7 @@ const speechstate = createMachine(
               assign({
                 asrRef: ({ context, spawn }) => {
                   return spawn(asrMachine, {
+                    id: "asrRef",
                     input: {
                       asrDefaultCompleteTimeout:
                         context.settings.asrDefaultCompleteTimeout,
@@ -94,12 +105,19 @@ const speechstate = createMachine(
                 },
               }),
             ],
+            exit: [
+              stopChild("ttsRef"),
+              stopChild("asrRef"),
+              assign({ ttsRef: undefined, asrRef: undefined }),
+            ],
             after: {
               300000: {
                 target: "Spawn",
+                reenter: true,
               },
             },
           },
+          Stopped: {},
         },
       },
       AsrTtsManager: {
@@ -125,10 +143,14 @@ const speechstate = createMachine(
             ],
             target: ".Ready",
           },
+          STOP: ".Stopped",
         },
         states: {
-          Initialize: {},
+          Initialize: {
+            meta: { view: "not-ready" },
+          },
           PreReady: {
+            meta: { view: "not-ready" },
             on: {
               TTS_READY: {
                 actions: () => console.debug("[TTS→SpSt] TTS_READY"),
@@ -148,6 +170,7 @@ const speechstate = createMachine(
             ],
             states: {
               Idle: {
+                meta: { view: "idle" },
                 on: {
                   LISTEN: { target: "WaitForRecogniser" },
                   SPEAK: [
@@ -158,6 +181,7 @@ const speechstate = createMachine(
                 },
               },
               Speaking: {
+                initial: "Proceed",
                 entry: [
                   ({ event }) =>
                     console.debug("[SpSt→TTS] SPEAK", (event as any).value),
@@ -168,16 +192,8 @@ const speechstate = createMachine(
                     }),
                 ],
                 on: {
-                  CONTROL: {
-                    actions: [
-                      () => console.debug("[SpSt→TTS] CONTROL"),
-                      ({ context }) =>
-                        context.ttsRef.send({
-                          type: "CONTROL",
-                        }),
-                    ],
-                  },
                   STOP: {
+                    target: "Stopped",
                     actions: [
                       () => console.debug("[SpSt→TTS] STOP"),
                       ({ context }) =>
@@ -200,8 +216,41 @@ const speechstate = createMachine(
                     ],
                   },
                 },
+                states: {
+                  Proceed: {
+                    meta: { view: "speaking" },
+                    on: {
+                      CONTROL: {
+                        target: "Paused",
+                        actions: [
+                          () => console.debug("[SpSt→TTS] CONTROL"),
+                          ({ context }) =>
+                            context.ttsRef.send({
+                              type: "CONTROL",
+                            }),
+                        ],
+                      },
+                    },
+                  },
+                  Paused: {
+                    meta: { view: "speaking-paused" },
+                    on: {
+                      CONTROL: {
+                        target: "Proceed",
+                        actions: [
+                          () => console.debug("[SpSt→TTS] CONTROL"),
+                          ({ context }) =>
+                            context.ttsRef.send({
+                              type: "CONTROL",
+                            }),
+                        ],
+                      },
+                    },
+                  },
+                },
               },
               WaitForRecogniser: {
+                meta: { view: "idle" },
                 entry: [
                   ({ event }) =>
                     console.debug("[SpSt→ASR] START", (event as any).value),
@@ -222,8 +271,10 @@ const speechstate = createMachine(
                 },
               },
               Recognising: {
+                meta: { view: "recognising" },
                 on: {
                   CONTROL: {
+                    /** TODO go to paused state? */
                     actions: [
                       () => console.debug("[SpSt→ASR] CONTROL"),
                       ({ context }) =>
@@ -233,7 +284,7 @@ const speechstate = createMachine(
                     ],
                   },
                   STOP: {
-                    target: "Idle",
+                    target: "Stopped",
                     actions: [
                       () => console.debug("[SpSt→ASR] STOP"),
                       ({ context }) =>
@@ -262,7 +313,8 @@ const speechstate = createMachine(
               },
             },
           },
-          Fail: {},
+          Fail: { meta: { view: "error" } },
+          Stopped: { meta: { view: "stopped" } },
         },
       },
     },
