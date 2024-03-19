@@ -73,12 +73,11 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const stream = new EventSource(input.stream);
         stream.onmessage = function (event: MessageEvent) {
-          console.log(typeof event.data);
           try {
             console.log(JSON.parse(event.data));
             sendBack(JSON.parse(event.data));
           } catch (e) {
-            console.debug("tts received event which was not JSON:", event.data);
+            console.debug("received event which was not JSON:", event.data);
           }
         };
       }
@@ -207,7 +206,10 @@ export const ttsMachine = setup({
               {
                 guard: stateIn("#BufferingDone"),
                 target: "Idle",
-                actions: sendParent({ type: "SPEAK_COMPLETE" }),
+                actions: [
+                  sendParent({ type: "SPEAK_COMPLETE" }),
+                  assign({ buffer: "" }),
+                ],
               },
             ],
           },

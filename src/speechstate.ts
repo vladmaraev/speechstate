@@ -56,7 +56,7 @@ const speechstate = createMachine(
       AsrTtsSpawner: {
         initial: "Idle",
         on: {
-          STOP: { target: "Stopped", actions: assign({ audioContext: null }) },
+          STOP: { target: ".Stopped", actions: assign({ audioContext: null }) },
         },
         states: {
           Idle: { on: { PREPARE: "CreateAudioContext" } },
@@ -193,7 +193,7 @@ const speechstate = createMachine(
                 ],
                 on: {
                   STOP: {
-                    target: "Stopped",
+                    target: "#speechstate.AsrTtsManager.Stopped",
                     actions: [
                       () => console.debug("[SpSt→TTS] STOP"),
                       ({ context }) =>
@@ -284,7 +284,7 @@ const speechstate = createMachine(
                     ],
                   },
                   STOP: {
-                    target: "Stopped",
+                    target: "#speechstate.AsrTtsManager.Stopped",
                     actions: [
                       () => console.debug("[SpSt→ASR] STOP"),
                       ({ context }) =>
@@ -299,7 +299,7 @@ const speechstate = createMachine(
                         console.debug(
                           "[ASR→SpSt] RECOGNISED",
                           (event as any).value,
-                          (event as any).nluValue,
+                          (event as any).nluValue
                         ),
                       sendParent(({ event }) => ({
                         type: "RECOGNISED",
@@ -348,7 +348,7 @@ const speechstate = createMachine(
       //     });
       //   },
     },
-  },
+  }
 );
 
 export { speechstate };
