@@ -71,22 +71,19 @@ export const ttsMachine = setup({
     getToken: getToken,
     createEventsFromStream: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
-        const stream = new EventSource(input.stream);
-        stream.onmessage = function (event: MessageEvent) {
-          let jsonEvent;
-          try {
-            jsonEvent = JSON.parse(event.data);
-          } catch (e) {
-            console.debug("received event which was not JSON:", event.data);
-          }
-          if (jsonEvent) {
-            console.log(jsonEvent);
-            sendBack(jsonEvent);
-            if (jsonEvent.type == "STREAMING_DONE") {
-              stream.close();
-            }
-          }
-        };
+        const eventSource = new EventSource(input.stream);
+        eventSource.addEventListener("STREAMING_DONE", (_event) => {
+          console.log("received streaming done - closing event stream");
+          sendBack({ type: "STREAMING_DONE" });
+          eventSource.close();
+        });
+        eventSource.addEventListener("STREAMING_RESET", (_event) => {
+          console.log("received streaming reset");
+        });
+        eventSource.addEventListener("STREAMING_CHUNK", (event) => {
+          console.log("received streaming chunk:", event);
+          sendBack({ type: "STREAMING_CHUNK", value: event.data });
+        });
       }
     ),
     ponyfill: fromCallback(({ sendBack, input }) => {
