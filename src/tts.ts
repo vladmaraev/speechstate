@@ -73,11 +73,18 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const stream = new EventSource(input.stream);
         stream.onmessage = function (event: MessageEvent) {
+          let jsonEvent;
           try {
-            console.log(JSON.parse(event.data));
-            sendBack(JSON.parse(event.data));
+            jsonEvent = JSON.parse(event.data);
           } catch (e) {
             console.debug("received event which was not JSON:", event.data);
+          }
+          if (jsonEvent) {
+            console.log(jsonEvent);
+            sendBack(jsonEvent);
+            if (jsonEvent.type == "STREAMING_DONE") {
+              stream.close();
+            }
           }
         };
       }
@@ -220,13 +227,13 @@ export const ttsMachine = setup({
                 BufferIdle: {
                   id: "BufferIdle",
                   entry: [
-                    ({ event }) => console.log("=== Entry BufferIdle", event),
+                    ({ event }) => console.debug("=== Entry BufferIdle", event),
                   ],
                   on: {
                     STREAMING_CHUNK: {
                       actions: [
                         ({ event }) =>
-                          console.log(
+                          console.debug(
                             "=================STREAMING_CHUNK: BufferIdle => Buffering",
                             event
                           ),
@@ -243,7 +250,7 @@ export const ttsMachine = setup({
                       {
                         actions: [
                           ({ event }) =>
-                            console.log(
+                            console.debug(
                               "=================STREAMING_CHUNK: Buffering => Buffering",
                               event
                             ),
@@ -257,7 +264,7 @@ export const ttsMachine = setup({
                         target: "BufferingDone",
                         actions: [
                           ({ event }) =>
-                            console.log(
+                            console.debug(
                               "=================STREAMING_DONE: Buffering => BufferingDone",
                               event
                             ),
@@ -266,7 +273,7 @@ export const ttsMachine = setup({
                     ],
                   },
                   entry: [
-                    ({ event }) => console.log("=== Entry Buffering", event),
+                    ({ event }) => console.debug("=== Entry Buffering", event),
                     assign({
                       buffer: ({ context, event }) =>
                         context.buffer + (event as any).value,
@@ -276,7 +283,7 @@ export const ttsMachine = setup({
                 BufferingDone: {
                   entry: [
                     ({ event }) =>
-                      console.log("=== Entry BufferingDone", event),
+                      console.debug("=== Entry BufferingDone", event),
                   ],
 
                   id: "BufferingDone",
@@ -288,7 +295,8 @@ export const ttsMachine = setup({
               states: {
                 SpeakingIdle: {
                   entry: [
-                    ({ event }) => console.log("=== Entry SpeakingIdle", event),
+                    ({ event }) =>
+                      console.debug("=== Entry SpeakingIdle", event),
                   ],
                   always: [
                     {
@@ -296,7 +304,7 @@ export const ttsMachine = setup({
                       guard: stateIn("#BufferingDone"),
                       actions: [
                         ({ event }) =>
-                          console.log(
+                          console.debug(
                             "========== in BufferingDone: SpeakingIdle => Speak",
                             event
                           ),
@@ -325,7 +333,7 @@ export const ttsMachine = setup({
                 PrepareSpeech: {
                   entry: [
                     ({ event }) =>
-                      console.log("=== Entry PrepareSpeech", event),
+                      console.debug("=== Entry PrepareSpeech", event),
                     assign(({ context }) => {
                       let utterancePart;
                       let restOfBuffer;
@@ -348,7 +356,9 @@ export const ttsMachine = setup({
                   ],
                 },
                 Speak: {
-                  entry: [({ event }) => console.log("=== Entry Speak", event)],
+                  entry: [
+                    ({ event }) => console.debug("=== Entry Speak", event),
+                  ],
                   initial: "Go",
                   on: {
                     TTS_STARTED: {
