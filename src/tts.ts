@@ -139,6 +139,9 @@ export const ttsMachine = setup({
 
       return !!m;
     },
+    bufferIsNonEmpty: ({ context }) => {
+      return !!context.buffer;
+    },
   },
   delays: {
     FILLER_DELAY: ({ context }) => {
@@ -206,10 +209,7 @@ export const ttsMachine = setup({
               {
                 guard: stateIn("#BufferingDone"),
                 target: "Idle",
-                actions: [
-                  sendParent({ type: "SPEAK_COMPLETE" }),
-                  // assign({ buffer: "" }),
-                ],
+                actions: [sendParent({ type: "SPEAK_COMPLETE" })],
               },
             ],
           },
@@ -303,6 +303,9 @@ export const ttsMachine = setup({
                         assign({
                           utteranceFromStream: ({ context }) => context.buffer,
                         }),
+                        assign({
+                          buffer: "",
+                        }),
                       ],
                     },
                     {
@@ -354,6 +357,10 @@ export const ttsMachine = setup({
                     SPEAK_COMPLETE: [
                       {
                         guard: stateIn("#Buffering"),
+                        target: "SpeakingIdle",
+                      },
+                      {
+                        guard: "bufferIsNonEmpty",
                         target: "SpeakingIdle",
                       },
                     ],
