@@ -2047,19 +2047,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@statelyai/inspect@npm:^0.2.3":
-  version: 0.2.3
-  resolution: "@statelyai/inspect@npm:0.2.3"
+"@statelyai/inspect@npm:^0.2.5":
+  version: 0.2.5
+  resolution: "@statelyai/inspect@npm:0.2.5"
   dependencies:
     fast-safe-stringify: ^2.1.1
     isomorphic-ws: ^5.0.0
     partysocket: ^0.0.25
     safe-stable-stringify: ^2.4.3
-    superjson: ^1
+    superjson: ^1.13.3
     uuid: ^9.0.1
   peerDependencies:
     xstate: ^5.5.1
-  checksum: 36fda2c52f60084b9c66d926249e61daa957da783ae099ff95f2b2a7e4abeee07961f58addb16d47d7a0a322b42b6e7f393e3d58ffb96270d23ba63fcd7a5a35
+  checksum: a39ac4690dad15ecb6bf0dd898890d8351c075c6a6f5acee522f3119b8ffdf710ad9351e10b77f1f371c1e295a03c71520d8f8131acc9a9fc3221ae4c218b4b8
   languageName: node
   linkType: hard
 
@@ -5759,7 +5759,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "speechstate@workspace:."
   dependencies:
-    "@statelyai/inspect": ^0.2.3
+    "@statelyai/inspect": ^0.2.5
     "@types/jest": ^29.5.2
     "@types/webspeechapi": ^0.0.29
     buffer: ^5.5.0||^6.0.0
@@ -5770,7 +5770,8 @@ __metadata:
     typescript: ^5.0.4
     vite: ^5.0.11
     web-speech-cognitive-services: ^7.1.3
-    xstate: ^5.5.1
+    ws: ^8.16.0
+    xstate: ^5.9.1
   languageName: unknown
   linkType: soft
 
@@ -5870,7 +5871,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superjson@npm:^1":
+"superjson@npm:^1.13.3":
   version: 1.13.3
   resolution: "superjson@npm:1.13.3"
   dependencies:
@@ -6366,7 +6367,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.11.0":
+"ws@npm:^8.11.0, ws@npm:^8.16.0":
   version: 8.16.0
   resolution: "ws@npm:8.16.0"
   peerDependencies:
@@ -6395,10 +6396,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"xstate@npm:^5.5.1":
-  version: 5.5.1
-  resolution: "xstate@npm:5.5.1"
-  checksum: aaa5ef7fa84ff40f321c0331c0360490b56a80d7b7f62dc69a1a85eea5f2acc213a0f82ea76025e7a2f539a3f0d4265dca37b013890cf731282ee2c555f166bb
+"xstate@npm:^5.9.1":
+  version: 5.9.1
+  resolution: "xstate@npm:5.9.1"
+  checksum: c9c421cd057b755abe52b324c11c3bb267fa01491a3be42db137e712701931a3f1e951acd5f620861cf9fc37db00d1385e4223c74e931ee94b217bcc32fcb3f0
   languageName: node
   linkType: hard
 
