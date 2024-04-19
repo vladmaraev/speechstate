@@ -51,270 +51,291 @@ const speechstate = createMachine(
       settings: input,
     }),
     id: "speechstate",
-    type: "parallel",
+    initial: "Active",
     states: {
-      AsrTtsSpawner: {
-        initial: "Idle",
-        on: {
-          STOP: { target: ".Stopped", actions: assign({ audioContext: null }) },
-        },
-        states: {
-          Idle: { on: { PREPARE: "CreateAudioContext" } },
-          CreateAudioContext: {
-            invoke: {
-              id: "createAudioContext",
-              src: "audioContext",
-              onDone: {
-                target: "Spawn",
-                actions: assign({ audioContext: ({ event }) => event.output }),
-              },
-            },
-          },
-          Spawn: {
-            entry: [
-              assign({
-                ttsRef: ({ context, spawn }) => {
-                  return spawn(ttsMachine, {
-                    id: "ttsRef",
-                    input: {
-                      ttsDefaultVoice: context.settings.ttsDefaultVoice,
-                      audioContext: context.audioContext,
-                      azureCredentials: context.settings.azureCredentials,
-                    },
-                  });
-                },
-              }),
-              assign({
-                asrRef: ({ context, spawn }) => {
-                  return spawn(asrMachine, {
-                    id: "asrRef",
-                    input: {
-                      asrDefaultCompleteTimeout:
-                        context.settings.asrDefaultCompleteTimeout,
-                      asrDefaultNoInputTimeout:
-                        context.settings.asrDefaultNoInputTimeout,
-                      locale: context.settings.locale,
-                      audioContext: context.audioContext,
-                      azureCredentials: context.settings.azureCredentials,
-                      azureLanguageCredentials:
-                        context.settings.azureLanguageCredentials,
-                      speechRecognitionEndpointId:
-                        context.settings.speechRecognitionEndpointId,
-                    },
-                  });
-                },
-              }),
-            ],
-            exit: [
-              stopChild("ttsRef"),
-              stopChild("asrRef"),
-              assign({ ttsRef: undefined, asrRef: undefined }),
-            ],
-            after: {
-              300000: {
-                target: "Spawn",
-                reenter: true,
-              },
-            },
-          },
-          Stopped: {},
-        },
+      Stopped: {
+        meta: { view: "stopped" },
+        entry: [
+          stopChild("ttsRef"),
+          stopChild("asrRef"),
+          assign({
+            audioContext: undefined,
+            ttsRef: undefined,
+            asrRef: undefined,
+          }),
+          () => console.debug("[SpSt] destroyed ASR and TTS"),
+        ],
       },
-      AsrTtsManager: {
-        initial: "Initialize",
-        on: {
-          TTS_READY: {
-            actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-            target: ".PreReady",
-          },
-          ASR_READY: {
-            actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-            target: ".PreReady",
-          },
-          // ASR_ERROR not implemented
-          TTS_ERROR: {
-            actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
-            target: ".Fail",
-          },
-          ASR_NOINPUT: {
-            actions: [
-              () => console.debug("[ASR→SpSt] NOINPUT"),
-              sendParent({ type: "ASR_NOINPUT" }),
-            ],
-            target: ".Ready",
-          },
-          STOP: ".Stopped",
-        },
+      Active: {
+        type: "parallel",
         states: {
-          Initialize: {
-            meta: { view: "not-ready" },
+          AsrTtsSpawner: {
+            initial: "Idle",
+            states: {
+              Idle: { on: { PREPARE: "CreateAudioContext" } },
+              CreateAudioContext: {
+                invoke: {
+                  id: "createAudioContext",
+                  src: "audioContext",
+                  onDone: {
+                    target: "Spawn",
+                    actions: assign({
+                      audioContext: ({ event }) => event.output,
+                    }),
+                  },
+                },
+              },
+              Spawn: {
+                entry: [
+                  assign({
+                    ttsRef: ({ context, spawn }) => {
+                      return spawn(ttsMachine, {
+                        id: "ttsRef",
+                        input: {
+                          ttsDefaultVoice: context.settings.ttsDefaultVoice,
+                          audioContext: context.audioContext,
+                          azureCredentials: context.settings.azureCredentials,
+                        },
+                      });
+                    },
+                  }),
+                  assign({
+                    asrRef: ({ context, spawn }) => {
+                      return spawn(asrMachine, {
+                        id: "asrRef",
+                        input: {
+                          asrDefaultCompleteTimeout:
+                            context.settings.asrDefaultCompleteTimeout,
+                          asrDefaultNoInputTimeout:
+                            context.settings.asrDefaultNoInputTimeout,
+                          locale: context.settings.locale,
+                          audioContext: context.audioContext,
+                          azureCredentials: context.settings.azureCredentials,
+                          azureLanguageCredentials:
+                            context.settings.azureLanguageCredentials,
+                          speechRecognitionEndpointId:
+                            context.settings.speechRecognitionEndpointId,
+                        },
+                      });
+                    },
+                  }),
+                ],
+                after: {
+                  300000: {
+                    target: "Spawn",
+                    reenter: true,
+                    actions: [
+                      ({}) => console.debug("[SpSt] respawning ASR and TTS"),
+                      stopChild("ttsRef"),
+                      stopChild("asrRef"),
+                      assign({
+                        audioContext: undefined,
+                        ttsRef: undefined,
+                        asrRef: undefined,
+                      }),
+                    ],
+                  },
+                },
+              },
+            },
           },
-          PreReady: {
-            meta: { view: "not-ready" },
+          AsrTtsManager: {
+            initial: "Initialize",
             on: {
               TTS_READY: {
                 actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-                target: "Ready",
+                target: ".PreReady",
               },
               ASR_READY: {
                 actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-                target: "Ready",
+                target: ".PreReady",
               },
+              // ASR_ERROR not implemented
+              TTS_ERROR: {
+                actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
+                target: ".Fail",
+              },
+              ASR_NOINPUT: {
+                actions: [
+                  () => console.debug("[ASR→SpSt] NOINPUT"),
+                  sendParent({ type: "ASR_NOINPUT" }),
+                ],
+                target: ".Ready",
+              },
+              STOP: "#speechstate.Stopped",
             },
-          },
-          Ready: {
-            initial: "Idle",
-            entry: [
-              () => console.debug("[SpSt] All ready"),
-              sendParent({ type: "ASRTTS_READY" }),
-            ],
             states: {
-              Idle: {
-                meta: { view: "idle" },
+              Initialize: {
+                meta: { view: "not-ready" },
+              },
+              PreReady: {
+                meta: { view: "not-ready" },
                 on: {
-                  LISTEN: { target: "WaitForRecogniser" },
-                  SPEAK: [
-                    {
-                      target: "Speaking",
-                    },
-                  ],
+                  TTS_READY: {
+                    actions: () => console.debug("[TTS→SpSt] TTS_READY"),
+                    target: "Ready",
+                  },
+                  ASR_READY: {
+                    actions: () => console.debug("[ASR→SpSt] ASR_READY"),
+                    target: "Ready",
+                  },
                 },
               },
-              Speaking: {
-                initial: "Proceed",
+              Ready: {
+                initial: "Idle",
                 entry: [
-                  ({ event }) =>
-                    console.debug("[SpSt→TTS] SPEAK", (event as any).value),
-                  ({ context, event }) =>
-                    context.ttsRef.send({
-                      type: "SPEAK",
-                      value: (event as any).value,
-                    }),
+                  () => console.debug("[SpSt] All ready"),
+                  sendParent({ type: "ASRTTS_READY" }),
                 ],
-                on: {
-                  STOP: {
-                    target: "#speechstate.AsrTtsManager.Stopped",
-                    actions: [
-                      () => console.debug("[SpSt→TTS] STOP"),
-                      ({ context }) =>
-                        context.ttsRef.send({
-                          type: "STOP",
-                        }),
-                    ],
-                  },
-                  TTS_STARTED: {
-                    actions: [
-                      () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                      sendParent({ type: "TTS_STARTED" }),
-                    ],
-                  },
-                  SPEAK_COMPLETE: {
-                    target: "Idle",
-                    actions: [
-                      () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
-                      sendParent({ type: "SPEAK_COMPLETE" }),
-                    ],
-                  },
-                },
                 states: {
-                  Proceed: {
-                    meta: { view: "speaking" },
+                  Idle: {
+                    meta: { view: "idle" },
                     on: {
-                      CONTROL: {
-                        target: "Paused",
-                        actions: [
-                          () => console.debug("[SpSt→TTS] CONTROL"),
-                          ({ context }) =>
-                            context.ttsRef.send({
-                              type: "CONTROL",
-                            }),
-                        ],
-                      },
+                      LISTEN: { target: "WaitForRecogniser" },
+                      SPEAK: [
+                        {
+                          target: "Speaking",
+                        },
+                      ],
                     },
                   },
-                  Paused: {
-                    meta: { view: "speaking-paused" },
-                    on: {
-                      CONTROL: {
-                        target: "Proceed",
-                        actions: [
-                          () => console.debug("[SpSt→TTS] CONTROL"),
-                          ({ context }) =>
-                            context.ttsRef.send({
-                              type: "CONTROL",
-                            }),
-                        ],
-                      },
-                    },
-                  },
-                },
-              },
-              WaitForRecogniser: {
-                meta: { view: "idle" },
-                entry: [
-                  ({ event }) =>
-                    console.debug("[SpSt→ASR] START", (event as any).value),
-                  ({ context, event }) =>
-                    context.asrRef.send({
-                      type: "START",
-                      value: (event as any).value,
-                    }),
-                ],
-                on: {
-                  ASR_STARTED: {
-                    target: "Recognising",
-                    actions: [
-                      () => console.debug("[ASR→SpSt] ASR_STARTED"),
-                      sendParent({ type: "ASR_STARTED" }),
-                    ],
-                  },
-                },
-              },
-              Recognising: {
-                meta: { view: "recognising" },
-                on: {
-                  CONTROL: {
-                    /** TODO go to paused state? */
-                    actions: [
-                      () => console.debug("[SpSt→ASR] CONTROL"),
-                      ({ context }) =>
-                        context.asrRef.send({
-                          type: "CONTROL",
-                        }),
-                    ],
-                  },
-                  STOP: {
-                    target: "#speechstate.AsrTtsManager.Stopped",
-                    actions: [
-                      () => console.debug("[SpSt→ASR] STOP"),
-                      ({ context }) =>
-                        context.asrRef.send({
-                          type: "STOP",
-                        }),
-                    ],
-                  },
-                  RECOGNISED: {
-                    actions: [
+                  Speaking: {
+                    initial: "Proceed",
+                    entry: [
                       ({ event }) =>
-                        console.debug(
-                          "[ASR→SpSt] RECOGNISED",
-                          (event as any).value,
-                          (event as any).nluValue
-                        ),
-                      sendParent(({ event }) => ({
-                        type: "RECOGNISED",
-                        value: (event as any).value,
-                        nluValue: (event as any).nluValue,
-                      })),
+                        console.debug("[SpSt→TTS] SPEAK", (event as any).value),
+                      ({ context, event }) =>
+                        context.ttsRef.send({
+                          type: "SPEAK",
+                          value: (event as any).value,
+                        }),
                     ],
-                    target: "Idle",
+                    on: {
+                      STOP: {
+                        target: "#speechstate.Stopped",
+                        actions: [
+                          ({}) => console.debug("[SpSt→TTS] STOP"),
+                          ({ context, event }) =>
+                            context.ttsRef.send({
+                              type: "STOP",
+                            }),
+                        ],
+                      },
+                      TTS_STARTED: {
+                        actions: [
+                          () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                          sendParent({ type: "TTS_STARTED" }),
+                        ],
+                      },
+                      SPEAK_COMPLETE: {
+                        target: "Idle",
+                        actions: [
+                          () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
+                          sendParent({ type: "SPEAK_COMPLETE" }),
+                        ],
+                      },
+                    },
+                    states: {
+                      Proceed: {
+                        meta: { view: "speaking" },
+                        on: {
+                          CONTROL: {
+                            target: "Paused",
+                            actions: [
+                              () => console.debug("[SpSt→TTS] CONTROL"),
+                              ({ context }) =>
+                                context.ttsRef.send({
+                                  type: "CONTROL",
+                                }),
+                            ],
+                          },
+                        },
+                      },
+                      Paused: {
+                        meta: { view: "speaking-paused" },
+                        on: {
+                          CONTROL: {
+                            target: "Proceed",
+                            actions: [
+                              () => console.debug("[SpSt→TTS] CONTROL"),
+                              ({ context }) =>
+                                context.ttsRef.send({
+                                  type: "CONTROL",
+                                }),
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  },
+                  WaitForRecogniser: {
+                    meta: { view: "idle" },
+                    entry: [
+                      ({ event }) =>
+                        console.debug("[SpSt→ASR] START", (event as any).value),
+                      ({ context, event }) =>
+                        context.asrRef.send({
+                          type: "START",
+                          value: (event as any).value,
+                        }),
+                    ],
+                    on: {
+                      ASR_STARTED: {
+                        target: "Recognising",
+                        actions: [
+                          () => console.debug("[ASR→SpSt] ASR_STARTED"),
+                          sendParent({ type: "ASR_STARTED" }),
+                        ],
+                      },
+                    },
+                  },
+                  Recognising: {
+                    meta: { view: "recognising" },
+                    on: {
+                      CONTROL: {
+                        /** TODO go to paused state? */
+                        actions: [
+                          () => console.debug("[SpSt→ASR] CONTROL"),
+                          ({ context }) =>
+                            context.asrRef.send({
+                              type: "CONTROL",
+                            }),
+                        ],
+                      },
+                      STOP: {
+                        target: "#speechstate.Stopped",
+                        actions: [
+                          () => console.debug("[SpSt→ASR] STOP"),
+                          ({ context }) =>
+                            context.asrRef.send({
+                              type: "STOP",
+                            }),
+                        ],
+                      },
+                      RECOGNISED: {
+                        actions: [
+                          ({ event }) =>
+                            console.debug(
+                              "[ASR→SpSt] RECOGNISED",
+                              (event as any).value,
+                              (event as any).nluValue,
+                            ),
+                          sendParent(({ event }) => ({
+                            type: "RECOGNISED",
+                            value: (event as any).value,
+                            nluValue: (event as any).nluValue,
+                          })),
+                        ],
+                        target: "Idle",
+                      },
+                    },
                   },
                 },
               },
+              Fail: { meta: { view: "error" } },
+              Stopped: { meta: { view: "stopped" } },
             },
           },
-          Fail: { meta: { view: "error" } },
-          Stopped: { meta: { view: "stopped" } },
         },
       },
     },
@@ -348,7 +369,7 @@ const speechstate = createMachine(
       //     });
       //   },
     },
-  }
+  },
 );
 
 export { speechstate };

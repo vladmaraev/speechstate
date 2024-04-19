@@ -1,4 +1,5 @@
 import { createActor, createMachine, assign } from "xstate";
+
 import { speechstate } from "./speechstate";
 import {
   AzureLanguageCredentials,
@@ -39,9 +40,10 @@ const speechMachine = createMachine({
   }),
 });
 
-const speechService = createActor(speechMachine, { inspect });
+export const speechState = createActor(speechMachine, { inspect });
 
-speechService.start();
-speechService.getSnapshot().context.ssRef.send({ type: "PREPARE" });
+speechState.start();
+speechState.getSnapshot().context.ssRef.send({ type: "PREPARE" });
 
-(window as any).speechService = speechService;
+
+(window as any).speechService = speechState;
