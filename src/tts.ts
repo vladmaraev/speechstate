@@ -113,15 +113,15 @@ export const ttsMachine = setup({
     }),
     start: fromCallback(({ sendBack, input }) => {
       if (["", " "].includes((input as any).utterance)) {
-        console.debug("[TTS] SPEAK: ", (input as any).utterance);
-        (input as any).wsaTTS.speak("");
+        console.debug("[TTS] SPEAK: (empty utterance)");
+        sendBack({ type: "SPEAK_COMPLETE" });
       } else {
         console.debug("[TTS] SPEAK: ", (input as any).utterance);
         const content = wrapSSML(
           (input as any).utterance,
           (input as any).voice,
           (input as any).ttsLexicon,
-          1
+          1,
         ); // todo speech rate;
         const utterance = new (input as any).wsaUtt!(content);
         utterance.addEventListener("start", () => {
