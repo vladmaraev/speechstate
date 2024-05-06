@@ -93,6 +93,7 @@ const speechstate = createMachine(
                         id: "ttsRef",
                         input: {
                           ttsDefaultVoice: context.settings.ttsDefaultVoice,
+                          ttsLexicon: context.settings.ttsLexicon,
                           audioContext: context.audioContext,
                           azureCredentials: context.settings.azureCredentials,
                         },

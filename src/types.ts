@@ -21,8 +21,9 @@ export interface Settings {
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
   asrDefaultNoInputTimeout?: number;
-  ttsDefaultVoice?: string;
   speechRecognitionEndpointId?: string;
+  ttsDefaultVoice?: string;
+  ttsLexicon?: string;
 }
 
 export interface Agenda {

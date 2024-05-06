@@ -14,11 +14,11 @@ interface TTSInit {
   audioContext: AudioContext;
   azureCredentials: string | AzureSpeechCredentials;
   ttsDefaultVoice: string;
+  ttsLexicon?: string;
 }
 
 interface TTSContext extends TTSInit {
   azureAuthorizationToken?: string;
-  ttsLexicon?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: MySpeechSynthesisUtterance;
@@ -84,7 +84,7 @@ export const ttsMachine = setup({
           console.log("received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
         });
-      }
+      },
     ),
     ponyfill: fromCallback(({ sendBack, input }) => {
       const ponyfill = createSpeechSynthesisPonyfill({
@@ -156,6 +156,7 @@ export const ttsMachine = setup({
   id: "tts",
   context: ({ input }) => ({
     ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
+    ttsLexicon: input.ttsLexicon,
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
     buffer: "",
@@ -232,7 +233,7 @@ export const ttsMachine = setup({
                         ({ event }) =>
                           console.debug(
                             "=================STREAMING_CHUNK: BufferIdle => Buffering",
-                            event
+                            event,
                           ),
                       ],
 
@@ -249,7 +250,7 @@ export const ttsMachine = setup({
                           ({ event }) =>
                             console.debug(
                               "=================STREAMING_CHUNK: Buffering => Buffering",
-                              event
+                              event,
                             ),
                         ],
                         target: "Buffering",
@@ -332,12 +333,12 @@ export const ttsMachine = setup({
                     ({ event }) =>
                       console.debug("=== Entry PrepareSpeech", event),
                     assign(({ context }) => {
-                      let utterancePart;
-                      let restOfBuffer;
+                      let utterancePart: string;
+                      let restOfBuffer: string;
                       const match = context.buffer.match(UTTERANCE_CHUNK_REGEX);
                       utterancePart = match![0];
                       restOfBuffer = context.buffer.substring(
-                        utterancePart.length
+                        utterancePart.length,
                       );
 
                       return {
