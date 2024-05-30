@@ -255,7 +255,7 @@ export const asrMachine = setup({
           },
         ],
         CONTROL: {
-          target: "Pause",
+          target: "Paused",
         },
         STOP: {
           target: "Ready",
@@ -380,7 +380,7 @@ export const asrMachine = setup({
         },
       },
     },
-    Pause: {
+    Paused: {
       entry: sendParent({ type: "ASR_PAUSED" }),
       on: {
         CONTROL: {

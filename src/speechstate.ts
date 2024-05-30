@@ -216,7 +216,7 @@ const speechstate = createMachine(
                         target: "#speechstate.Stopped",
                         actions: [
                           ({}) => console.debug("[SpSt→TTS] STOP"),
-                          ({ context, event }) =>
+                          ({ context }) =>
                             context.ttsRef.send({
                               type: "STOP",
                             }),
@@ -291,18 +291,8 @@ const speechstate = createMachine(
                     },
                   },
                   Recognising: {
-                    meta: { view: "recognising" },
+                    initial: "Proceed",
                     on: {
-                      CONTROL: {
-                        /** TODO go to paused state? */
-                        actions: [
-                          () => console.debug("[SpSt→ASR] CONTROL"),
-                          ({ context }) =>
-                            context.asrRef.send({
-                              type: "CONTROL",
-                            }),
-                        ],
-                      },
                       STOP: {
                         target: "#speechstate.Stopped",
                         actions: [
@@ -328,6 +318,38 @@ const speechstate = createMachine(
                           })),
                         ],
                         target: "Idle",
+                      },
+                    },
+                    states: {
+                      Proceed: {
+                        meta: { view: "recognising" },
+                        on: {
+                          CONTROL: {
+                            target: "Paused",
+                            actions: [
+                              () => console.debug("[SpSt→ASR] CONTROL"),
+                              ({ context }) =>
+                                context.asrRef.send({
+                                  type: "CONTROL",
+                                }),
+                            ],
+                          },
+                        },
+                      },
+                      Paused: {
+                        meta: { view: "recognising-paused" },
+                        on: {
+                          CONTROL: {
+                            target: "Proceed",
+                            actions: [
+                              () => console.debug("[SpSt→ASR] CONTROL"),
+                              ({ context }) =>
+                                context.asrRef.send({
+                                  type: "CONTROL",
+                                }),
+                            ],
+                          },
+                        },
                       },
                     },
                   },
