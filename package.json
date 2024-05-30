@@ -1,13 +1,11 @@
 {
   "name": "speechstate",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "license": "GPL-3.0",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "/dist"
-  ],
+  "files": ["/dist"],
   "dependencies": {
     "microsoft-cognitiveservices-speech-sdk": "^1.31.0",
     "web-speech-cognitive-services": "^7.1.3",
@@ -19,17 +17,10 @@
     "test": "jest --silent=false"
   },
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "extends": ["react-app", "react-app/jest"]
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
+    "production": [">0.2%", "not dead", "not op_mini all"],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
