@@ -2,7 +2,6 @@ import { setup, sendParent, assign, fromCallback, stateIn } from "xstate";
 
 import { getToken } from "./getToken";
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
-const REGION = "northeurope";
 
 import { AzureSpeechCredentials, Agenda } from "./types";
 
@@ -13,6 +12,7 @@ interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
 interface TTSInit {
   audioContext: AudioContext;
   azureCredentials: string | AzureSpeechCredentials;
+  azureRegion: string;
   ttsDefaultVoice: string;
   ttsLexicon?: string;
 }
@@ -25,6 +25,12 @@ interface TTSContext extends TTSInit {
   agenda?: Agenda;
   buffer?: string;
   utteranceFromStream?: string;
+}
+
+interface TTSPonyfillInput {
+  audioContext: AudioContext;
+  azureRegion: string;
+  azureAuthorizationToken: string;
 }
 
 type TTSEvent =
@@ -86,12 +92,12 @@ export const ttsMachine = setup({
         });
       },
     ),
-    ponyfill: fromCallback(({ sendBack, input }) => {
+    ponyfill: fromCallback<null, TTSPonyfillInput>(({ sendBack, input }) => {
       const ponyfill = createSpeechSynthesisPonyfill({
-        audioContext: (input as any).audioContext,
+        audioContext: input.audioContext,
         credentials: {
-          region: REGION, // TODO
-          authorizationToken: (input as any).azureAuthorizationToken,
+          region: input.azureRegion,
+          authorizationToken: input.azureAuthorizationToken,
         },
       });
       const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
@@ -159,6 +165,7 @@ export const ttsMachine = setup({
     ttsLexicon: input.ttsLexicon,
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
+    azureRegion: input.azureRegion,
     buffer: "",
   }),
   initial: "GetToken",
@@ -264,7 +271,7 @@ export const ttsMachine = setup({
                           ({ event }) =>
                             console.debug(
                               "=================STREAMING_DONE: Buffering => BufferingDone",
-                              event
+                              event,
                             ),
                         ],
                       },
@@ -304,7 +311,7 @@ export const ttsMachine = setup({
                         ({ event }) =>
                           console.debug(
                             "========== in BufferingDone: SpeakingIdle => Speak",
-                            event
+                            event,
                           ),
                         assign({
                           utteranceFromStream: ({ context }) => context.buffer,
@@ -473,6 +480,7 @@ export const ttsMachine = setup({
         input: ({ context }) => ({
           audioContext: context.audioContext,
           azureAuthorizationToken: context.azureAuthorizationToken,
+          azureRegion: context.azureRegion,
         }),
       },
     },
@@ -483,7 +491,7 @@ const wrapSSML = (
   text: string,
   voice: string,
   lexicon: string,
-  speechRate: number
+  speechRate: number,
 ): string => {
   let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}">`;
   if (lexicon) {

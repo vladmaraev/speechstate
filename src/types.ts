@@ -18,6 +18,7 @@ export interface AzureLanguageCredentials {
 export interface Settings {
   locale?: string;
   azureCredentials: string | AzureCredentials | AzureSpeechCredentials;
+  azureRegion: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
   asrDefaultNoInputTimeout?: number;
