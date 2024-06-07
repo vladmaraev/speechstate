@@ -10,7 +10,6 @@ import {
 import { getToken } from "./getToken";
 
 import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
-const REGION = "northeurope";
 
 import {
   RecogniseParameters,
@@ -62,8 +61,16 @@ interface ASRInit {
   locale: string;
   audioContext: AudioContext;
   azureCredentials: string | AzureSpeechCredentials;
+  azureRegion: string;
   speechRecognitionEndpointId?: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
+}
+
+interface ASRPonyfillInput {
+  audioContext: AudioContext;
+  azureAuthorizationToken: string;
+  azureRegion: string;
+  speechRecognitionEndpointId?: string;
 }
 
 export const asrMachine = setup({
@@ -80,15 +87,14 @@ export const asrMachine = setup({
   },
   actors: {
     getToken: getToken,
-    ponyfill: fromCallback(({ sendBack, input }) => {
+    ponyfill: fromCallback<null, ASRPonyfillInput>(({ sendBack, input }) => {
       const { SpeechGrammarList, SpeechRecognition } =
         createSpeechRecognitionPonyfill({
-          audioContext: (input as any).audioContext,
-          speechRecognitionEndpointId: (input as any)
-            .speechRecognitionEndpointId,
+          audioContext: input.audioContext,
+          speechRecognitionEndpointId: input.speechRecognitionEndpointId,
           credentials: {
-            region: REGION, // TODO
-            authorizationToken: (input as any).azureAuthorizationToken,
+            region: input.azureRegion,
+            authorizationToken: input.azureAuthorizationToken,
           },
         });
       sendBack({
@@ -188,6 +194,7 @@ export const asrMachine = setup({
     locale: input.locale || "en-US",
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
+    azureRegion: input.azureRegion,
     azureLanguageCredentials: input.azureLanguageCredentials,
     speechRecognitionEndpointId: input.speechRecognitionEndpointId,
   }),
@@ -424,6 +431,7 @@ export const asrMachine = setup({
         id: "ponyASR",
         src: "ponyfill",
         input: ({ context }) => ({
+          azureRegion: context.azureRegion,
           audioContext: context.audioContext,
           azureAuthorizationToken: context.azureAuthorizationToken,
           locale: context.locale,

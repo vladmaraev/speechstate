@@ -96,6 +96,7 @@ const speechstate = createMachine(
                           ttsLexicon: context.settings.ttsLexicon,
                           audioContext: context.audioContext,
                           azureCredentials: context.settings.azureCredentials,
+                          azureRegion: context.settings.azureRegion,
                         },
                       });
                     },
@@ -112,6 +113,7 @@ const speechstate = createMachine(
                           locale: context.settings.locale,
                           audioContext: context.audioContext,
                           azureCredentials: context.settings.azureCredentials,
+                          azureRegion: context.settings.azureRegion,
                           azureLanguageCredentials:
                             context.settings.azureLanguageCredentials,
                           speechRecognitionEndpointId:

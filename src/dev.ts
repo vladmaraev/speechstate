@@ -26,6 +26,7 @@ const azureLanguageCredentials: AzureLanguageCredentials = {
 
 const settings: Settings = {
   azureCredentials: azureSpeechCredentials,
+  azureRegion: "swedencentral",
   azureLanguageCredentials: azureLanguageCredentials,
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
