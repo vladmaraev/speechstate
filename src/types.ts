@@ -25,6 +25,7 @@ export interface Settings {
   speechRecognitionEndpointId?: string;
   ttsDefaultVoice?: string;
   ttsLexicon?: string;
+  ttsFillers?: string[];
 }
 
 export interface Agenda {

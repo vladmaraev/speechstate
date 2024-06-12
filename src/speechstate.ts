@@ -97,6 +97,7 @@ const speechstate = createMachine(
                           audioContext: context.audioContext,
                           azureCredentials: context.settings.azureCredentials,
                           azureRegion: context.settings.azureRegion,
+                          ttsFillers: context.settings.ttsFillers,
                         },
                       });
                     },
