@@ -1,11 +1,16 @@
 import { setup, sendParent, assign, fromCallback, stateIn } from "xstate";
 
 import { getToken } from "./getToken";
-import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
+import createSpeechSynthesisPonyfill from "@davi-ai/web-speech-cognitive-services-davi";
+import type {
+  SpeechSynthesisUtterance,
+  SpeechSynthesisEventProps,
+} from "@davi-ai/web-speech-cognitive-services-davi";
 
 import { AzureSpeechCredentials, Agenda } from "./types";
 
-interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
+interface ConstructableSpeechSynthesisUtterance
+  extends SpeechSynthesisUtterance {
   new (s: string);
 }
 
@@ -21,7 +26,7 @@ interface TTSContext extends TTSInit {
   azureAuthorizationToken?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
-  wsaUtt?: MySpeechSynthesisUtterance;
+  wsaUtt?: ConstructableSpeechSynthesisUtterance;
   agenda?: Agenda;
   buffer?: string;
   utteranceFromStream?: string;
@@ -41,7 +46,7 @@ type TTSEvent =
       type: "READY";
       value: {
         wsaTTS: SpeechSynthesis;
-        wsaUtt: MySpeechSynthesisUtterance;
+        wsaUtt: ConstructableSpeechSynthesisUtterance;
       };
     }
   | { type: "ERROR" }
@@ -49,7 +54,8 @@ type TTSEvent =
   | { type: "TTS_STARTED" }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_DONE" }
-  | { type: "SPEAK_COMPLETE" };
+  | { type: "SPEAK_COMPLETE" }
+  | { type: "VISEME"; value: SpeechSynthesisEventProps };
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -103,10 +109,10 @@ export const ttsMachine = setup({
       const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
       const tts = speechSynthesis;
       const ttsUtterance = SpeechSynthesisUtterance;
-      tts.addEventListener("voiceschanged", () => {
+      tts.onvoiceschanged = () => {
         const voices = tts.getVoices();
         if (voices.length > 0) {
-          console.debug("[TTS] READY");
+          console.debug("[TTS] READY", tts);
           sendBack({
             type: "READY",
             value: { wsaTTS: tts, wsaUtt: ttsUtterance },
@@ -115,31 +121,48 @@ export const ttsMachine = setup({
           console.error("[TTS] No voices available");
           sendBack({ type: "ERROR" });
         }
-      });
+      };
     }),
-    start: fromCallback(({ sendBack, input }) => {
-      if (["", " "].includes((input as any).utterance)) {
+    start: fromCallback<
+      null,
+      {
+        utterance: string;
+        voice: string;
+        ttsLexicon: string;
+        wsaUtt: ConstructableSpeechSynthesisUtterance;
+        wsaTTS: SpeechSynthesis;
+      }
+    >(({ sendBack, input }) => {
+      if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        console.debug("[TTS] SPEAK: ", (input as any).utterance);
+        console.debug("[TTS] SPEAK: ", input.utterance);
         const content = wrapSSML(
-          (input as any).utterance,
-          (input as any).voice,
-          (input as any).ttsLexicon,
-          1,
-        ); // todo speech rate;
-        const utterance = new (input as any).wsaUtt!(content);
-        utterance.addEventListener("start", () => {
+          input.utterance,
+          input.voice,
+          input.ttsLexicon,
+        );
+        let visemeStart = 0;
+        const utterance = new input.wsaUtt(content);
+        utterance.onsynthesisstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
-        });
-        utterance.addEventListener("end", () => {
+        };
+        utterance.onend = () => {
           sendBack({ type: "SPEAK_COMPLETE" });
           console.debug("[TTS] SPEAK_COMPLETE");
-        });
-
-        (input as any).wsaTTS.speak(utterance);
+        };
+        utterance.onviseme = (event: SpeechSynthesisEventProps) => {
+          const name = event.name;
+          const fromStart = event.elapsedTime / 1e6;
+          sendBack({
+            type: "VISEME",
+            value: { name: name, frames: [visemeStart, fromStart] },
+          });
+          visemeStart = event.elapsedTime / 1e6;
+        };
+        input.wsaTTS.speak(utterance);
       }
     }),
   },
@@ -419,6 +442,12 @@ export const ttsMachine = setup({
             TTS_STARTED: {
               actions: sendParent({ type: "TTS_STARTED" }),
             },
+            VISEME: {
+              actions: sendParent(({ event }) => ({
+                type: "VISEME",
+                value: event.value,
+              })),
+            },
             SPEAK_COMPLETE: {
               target: "Idle",
             },
@@ -487,19 +516,9 @@ export const ttsMachine = setup({
   },
 });
 
-const wrapSSML = (
-  text: string,
-  voice: string,
-  lexicon: string,
-  speechRate: number,
-): string => {
-  let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}">`;
-  if (lexicon) {
-    content = content + `<lexicon uri="${lexicon}"/>`;
-  }
-  content =
-    content +
-    `<prosody rate="${speechRate}">` +
-    `${text}</prosody></voice></speak>`;
-  return content;
+const wrapSSML = (text: string, voice: string, lexicon: string): string => {
+  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"  xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
+  <voice name="${voice}">
+  ${lexicon ? `<lexicon uri="${lexicon}"/>` : ""}
+  ${text}\n    </voice>\n</speak>\n`;
 };

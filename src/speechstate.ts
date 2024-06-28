@@ -8,7 +8,14 @@ import {
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
-import { Settings, Agenda, Hypothesis, RecogniseParameters } from "./types";
+import type { SpeechSynthesisEventProps } from "@davi-ai/web-speech-cognitive-services-davi";
+import type {
+  Settings,
+  Agenda,
+  Hypothesis,
+  RecogniseParameters,
+} from "./types";
+
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
@@ -31,6 +38,7 @@ type SSEventExtOut =
   | { type: "ASR_STARTED" }
   | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" }
+  | { type: "VISEME"; value: SpeechSynthesisEventProps }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any };
 
 type SSEventIntIn =
@@ -228,6 +236,16 @@ const speechstate = createMachine(
                         actions: [
                           () => console.debug("[TTS→SpSt] TTS_STARTED"),
                           sendParent({ type: "TTS_STARTED" }),
+                        ],
+                      },
+                      VISEME: {
+                        actions: [
+                          ({ event }) =>
+                            console.debug("[TTS→SpSt] VISEME", event.value),
+                          sendParent(({ event }) => ({
+                            type: "VISEME",
+                            value: event.value,
+                          })),
                         ],
                       },
                       SPEAK_COMPLETE: {
