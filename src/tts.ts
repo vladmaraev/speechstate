@@ -24,6 +24,7 @@ interface TTSContext extends TTSInit {
   wsaUtt?: MySpeechSynthesisUtterance;
   agenda?: Agenda;
   buffer?: string;
+  currentVoice?: string;
   utteranceFromStream?: string;
 }
 
@@ -48,6 +49,7 @@ type TTSEvent =
   | { type: "SPEAK"; value: Agenda }
   | { type: "TTS_STARTED" }
   | { type: "STREAMING_CHUNK"; value: string }
+  | { type: "STREAMING_SET_VOICE"; value: string }
   | { type: "STREAMING_DONE" }
   | { type: "SPEAK_COMPLETE" };
 
@@ -72,6 +74,17 @@ export const ttsMachine = setup({
           context.buffer.substring(spaceIndex),
       };
     }),
+    assignCurrentVoice: assign(
+      ({
+        event,
+      }: {
+        event: { type: "STREAMING_SET_VOICE"; value: string };
+      }) => {
+        return {
+          currentVoice: event.value,
+        };
+      },
+    ),
   },
   actors: {
     getToken: getToken,
@@ -89,6 +102,10 @@ export const ttsMachine = setup({
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
           console.log("received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
+        });
+        eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
+          console.log("received streaming voice set command:", event);
+          sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
         });
       },
     ),
@@ -228,6 +245,11 @@ export const ttsMachine = setup({
           states: {
             Buffer: {
               initial: "BufferIdle",
+              on: {
+                STREAMING_SET_VOICE: {
+                  actions: "assignCurrentVoice",
+                },
+              },
               states: {
                 BufferIdle: {
                   id: "BufferIdle",
@@ -389,7 +411,9 @@ export const ttsMachine = setup({
                           wsaUtt: context.wsaUtt,
                           ttsLexicon: context.ttsLexicon,
                           voice:
-                            context.agenda.voice || context.ttsDefaultVoice,
+                            context.currentVoice ||
+                            context.agenda.voice ||
+                            context.ttsDefaultVoice,
                           utterance: context.utteranceFromStream,
                         }),
                       },
