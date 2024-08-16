@@ -15,6 +15,7 @@ interface TTSInit {
   azureRegion: string;
   ttsDefaultVoice: string;
   ttsLexicon?: string;
+  ttsFillers?: string[];
 }
 
 interface TTSContext extends TTSInit {
@@ -55,6 +56,10 @@ type TTSEvent =
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
+function randomChoice(xs: Array<any>) {
+  return xs[Math.floor(xs.length * Math.random())];
+}
+
 export const ttsMachine = setup({
   types: {} as {
     input: TTSInit;
@@ -70,7 +75,9 @@ export const ttsMachine = setup({
       return {
         buffer:
           context.buffer.substring(0, spaceIndex) +
-          " um," +
+          (context.ttsFillers
+            ? " " + randomChoice(context.ttsFillers)
+            : " um,") +
           context.buffer.substring(spaceIndex),
       };
     }),
