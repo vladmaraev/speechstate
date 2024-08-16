@@ -46,3 +46,28 @@ export interface RecogniseParameters {
   hints?: string[];
   nlu?: boolean | AzureLanguageCredentials;
 }
+
+/** events sent to the spawned `speechstate` machine **/
+type SSEventExtIn =
+  | { type: "PREPARE" }
+  | { type: "CONTROL" }
+  | { type: "STOP" }
+  | { type: "SPEAK"; value: Agenda }
+  | { type: "LISTEN"; value: RecogniseParameters };
+
+/** for sendParent, not type-checked */
+type SSEventExtOut =
+  | { type: "ASR_NOINPUT" }
+  | { type: "ASRTTS_READY" }
+  | { type: "ASR_STARTED" }
+  | { type: "TTS_STARTED" }
+  | { type: "SPEAK_COMPLETE" }
+  | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any };
+
+type SSEventIntIn =
+  | { type: "TTS_READY" }
+  | { type: "ASR_READY" }
+  | { type: "TTS_ERROR" };
+
+export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;
+export type SpeechStateEvent = SSEventIntIn | SpeechStateExternalEvent;
