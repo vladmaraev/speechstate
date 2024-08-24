@@ -1,4 +1,4 @@
-import { createActor, createMachine, assign } from "xstate";
+import { createActor, createMachine } from "xstate";
 
 import { speechstate } from "./speechstate";
 import {
@@ -6,14 +6,14 @@ import {
   AzureSpeechCredentials,
   Settings,
 } from "./types";
-import { createSkyInspector } from "@statelyai/inspect";
+import { createBrowserInspector } from "@statelyai/inspect";
 
-const { inspect } = createSkyInspector();
+const inspector = createBrowserInspector();
 
 const azureSpeechCredentials: AzureSpeechCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "",
+  key: "2e15e033f605414bbbfe26cb631ab755",
 };
 
 const azureLanguageCredentials: AzureLanguageCredentials = {
@@ -26,7 +26,7 @@ const azureLanguageCredentials: AzureLanguageCredentials = {
 
 const settings: Settings = {
   azureCredentials: azureSpeechCredentials,
-  azureRegion: "swedencentral",
+  azureRegion: "northeurope",
   azureLanguageCredentials: azureLanguageCredentials,
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
@@ -36,15 +36,18 @@ const settings: Settings = {
 };
 
 const speechMachine = createMachine({
-  entry: assign({
-    ssRef: ({ spawn }) => spawn(speechstate, { input: settings }),
-  }),
+  context: ({ spawn }) => {
+    return { ssRef: spawn(speechstate, { input: settings }) };
+  },
+  initial: "Main",
+  states: { Main: {} },
 });
 
-export const speechState = createActor(speechMachine, { inspect });
+export const speechState = createActor(speechMachine, {
+  inspect: inspector.inspect,
+});
 
 speechState.start();
 speechState.getSnapshot().context.ssRef.send({ type: "PREPARE" });
-
 
 (window as any).speechService = speechState;

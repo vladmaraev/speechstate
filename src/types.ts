@@ -62,7 +62,8 @@ type SSEventExtOut =
   | { type: "ASR_STARTED" }
   | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" }
-  | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any };
+  | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
+  | { type: "STREAMING_SET_PERSONA"; value: string };
 
 type SSEventIntIn =
   | { type: "TTS_READY" }
@@ -71,3 +72,107 @@ type SSEventIntIn =
 
 export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;
 export type SpeechStateEvent = SSEventIntIn | SpeechStateExternalEvent;
+
+export interface MySpeechRecognition extends SpeechRecognition {
+  new ();
+}
+export interface MySpeechGrammarList extends SpeechGrammarList {
+  new ();
+}
+
+export type ASREvent =
+  | {
+      type: "READY";
+      value: {
+        wsaASR: MySpeechRecognition;
+        wsaGrammarList: MySpeechGrammarList;
+      };
+    }
+  | { type: "ERROR" }
+  | { type: "NOINPUT" }
+  | { type: "CONTROL" }
+  | {
+      type: "START";
+      value?: RecogniseParameters;
+    }
+  | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
+  | { type: "STARTSPEECH" }
+  | { type: "RECOGNISED" }
+  | { type: "RESULT"; value: Hypothesis[] };
+
+export interface ASRContext extends ASRInit {
+  azureAuthorizationToken?: string;
+  wsaASR?: MySpeechRecognition;
+  wsaASRinstance?: MySpeechRecognition;
+  wsaGrammarList?: MySpeechGrammarList;
+  result?: Hypothesis[];
+  nluResult?: any; // TODO
+  params?: RecogniseParameters;
+}
+
+export interface ASRInit {
+  asrDefaultCompleteTimeout: number;
+  asrDefaultNoInputTimeout: number;
+  locale: string;
+  audioContext: AudioContext;
+  azureCredentials: string | AzureSpeechCredentials;
+  azureRegion: string;
+  speechRecognitionEndpointId?: string;
+  azureLanguageCredentials?: AzureLanguageCredentials;
+}
+
+export interface ASRPonyfillInput {
+  audioContext: AudioContext;
+  azureAuthorizationToken: string;
+  azureRegion: string;
+  speechRecognitionEndpointId?: string;
+}
+
+export interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
+  new (s: string);
+}
+
+export interface TTSInit {
+  audioContext: AudioContext;
+  azureCredentials: string | AzureSpeechCredentials;
+  azureRegion: string;
+  ttsDefaultVoice: string;
+  ttsLexicon?: string;
+}
+
+export interface TTSContext extends TTSInit {
+  azureAuthorizationToken?: string;
+  wsaTTS?: SpeechSynthesis;
+  wsaVoice?: SpeechSynthesisVoice;
+  wsaUtt?: MySpeechSynthesisUtterance;
+  agenda?: Agenda;
+  buffer?: string;
+  currentVoice?: string;
+  utteranceFromStream?: string;
+}
+
+export interface TTSPonyfillInput {
+  audioContext: AudioContext;
+  azureRegion: string;
+  azureAuthorizationToken: string;
+}
+
+export type TTSEvent =
+  | { type: "PREPARE" }
+  | { type: "CONTROL" }
+  | { type: "STOP" }
+  | {
+      type: "READY";
+      value: {
+        wsaTTS: SpeechSynthesis;
+        wsaUtt: MySpeechSynthesisUtterance;
+      };
+    }
+  | { type: "ERROR" }
+  | { type: "SPEAK"; value: Agenda }
+  | { type: "TTS_STARTED" }
+  | { type: "STREAMING_CHUNK"; value: string }
+  | { type: "STREAMING_SET_VOICE"; value: string }
+  | { type: "STREAMING_SET_PERSONA"; value: string }
+  | { type: "STREAMING_DONE" }
+  | { type: "SPEAK_COMPLETE" };

@@ -1,57 +1,23 @@
-import { setup, sendParent, assign, fromCallback, stateIn } from "xstate";
+import {
+  setup,
+  sendParent,
+  assign,
+  fromCallback,
+  stateIn,
+  raise,
+} from "xstate";
+
+import {
+  Agenda,
+  TTSInit,
+  TTSEvent,
+  TTSContext,
+  TTSPonyfillInput,
+} from "./types";
 
 import { getToken } from "./getToken";
+
 import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
-
-import { AzureSpeechCredentials, Agenda } from "./types";
-
-interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
-  new (s: string);
-}
-
-interface TTSInit {
-  audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
-  azureRegion: string;
-  ttsDefaultVoice: string;
-  ttsLexicon?: string;
-}
-
-interface TTSContext extends TTSInit {
-  azureAuthorizationToken?: string;
-  wsaTTS?: SpeechSynthesis;
-  wsaVoice?: SpeechSynthesisVoice;
-  wsaUtt?: MySpeechSynthesisUtterance;
-  agenda?: Agenda;
-  buffer?: string;
-  currentVoice?: string;
-  utteranceFromStream?: string;
-}
-
-interface TTSPonyfillInput {
-  audioContext: AudioContext;
-  azureRegion: string;
-  azureAuthorizationToken: string;
-}
-
-type TTSEvent =
-  | { type: "PREPARE" }
-  | { type: "CONTROL" }
-  | { type: "STOP" }
-  | {
-      type: "READY";
-      value: {
-        wsaTTS: SpeechSynthesis;
-        wsaUtt: MySpeechSynthesisUtterance;
-      };
-    }
-  | { type: "ERROR" }
-  | { type: "SPEAK"; value: Agenda }
-  | { type: "TTS_STARTED" }
-  | { type: "STREAMING_CHUNK"; value: string }
-  | { type: "STREAMING_SET_VOICE"; value: string }
-  | { type: "STREAMING_DONE" }
-  | { type: "SPEAK_COMPLETE" };
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -85,6 +51,16 @@ export const ttsMachine = setup({
         };
       },
     ),
+    sendParentCurrentPersona: sendParent(
+      ({
+        event,
+      }: {
+        event: { type: "STREAMING_SET_PERSONA"; value: string };
+      }) => ({
+        type: "STREAMING_SET_PERSONA",
+        value: event.value,
+      }),
+    ),
   },
   actors: {
     getToken: getToken,
@@ -92,20 +68,24 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
-          console.log("received streaming done - closing event stream");
+          console.debug("[TTS] received streaming done - closing event stream");
           sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
         });
         eventSource.addEventListener("STREAMING_RESET", (_event) => {
-          console.log("received streaming reset");
+          console.debug("[TTS] received streaming reset");
         });
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
-          console.log("received streaming chunk:", event);
+          console.debug("[TTS] received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
-          console.log("received streaming voice set command:", event);
+          console.debug("[TTS] received streaming voice set command:", event);
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
+        });
+        eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
+          console.debug("[TTS] received streaming persona set command:", event);
+          sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
         });
       },
     ),
@@ -248,6 +228,9 @@ export const ttsMachine = setup({
               on: {
                 STREAMING_SET_VOICE: {
                   actions: "assignCurrentVoice",
+                },
+                STREAMING_SET_PERSONA: {
+                  actions: "sendParentCurrentPersona",
                 },
               },
               states: {
@@ -492,7 +475,10 @@ export const ttsMachine = setup({
           ],
         },
         onError: {
-          actions: ({ event }) => console.error("[TTS] getToken error", event),
+          actions: [
+            raise({ type: "ERROR" }),
+            ({ event }) => console.error("[TTS] getToken error", event),
+          ],
           target: "Fail",
         },
       },

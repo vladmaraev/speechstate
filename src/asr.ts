@@ -7,71 +7,19 @@ import {
   raise,
   cancel,
 } from "xstate";
-import { getToken } from "./getToken";
-
-import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
 
 import {
-  RecogniseParameters,
+  ASRContext,
+  ASREvent,
+  ASRInit,
+  ASRPonyfillInput,
   Hypothesis,
-  AzureSpeechCredentials,
   AzureLanguageCredentials,
 } from "./types";
 
-interface MySpeechRecognition extends SpeechRecognition {
-  new ();
-}
-interface MySpeechGrammarList extends SpeechGrammarList {
-  new ();
-}
+import { getToken } from "./getToken";
 
-type ASREvent =
-  | {
-      type: "READY";
-      value: {
-        wsaASR: MySpeechRecognition;
-        wsaGrammarList: MySpeechGrammarList;
-      };
-    }
-  | { type: "ERROR" }
-  | { type: "NOINPUT" }
-  | { type: "CONTROL" }
-  | {
-      type: "START";
-      value?: RecogniseParameters;
-    }
-  | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
-  | { type: "STARTSPEECH" }
-  | { type: "RECOGNISED" }
-  | { type: "RESULT"; value: Hypothesis[] };
-
-interface ASRContext extends ASRInit {
-  azureAuthorizationToken?: string;
-  wsaASR?: MySpeechRecognition;
-  wsaASRinstance?: MySpeechRecognition;
-  wsaGrammarList?: MySpeechGrammarList;
-  result?: Hypothesis[];
-  nluResult?: any; // TODO
-  params?: RecogniseParameters;
-}
-
-interface ASRInit {
-  asrDefaultCompleteTimeout: number;
-  asrDefaultNoInputTimeout: number;
-  locale: string;
-  audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
-  azureRegion: string;
-  speechRecognitionEndpointId?: string;
-  azureLanguageCredentials?: AzureLanguageCredentials;
-}
-
-interface ASRPonyfillInput {
-  audioContext: AudioContext;
-  azureAuthorizationToken: string;
-  azureRegion: string;
-  speechRecognitionEndpointId?: string;
-}
+import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
 
 export const asrMachine = setup({
   types: {
