@@ -13,7 +13,7 @@ const inspector = createBrowserInspector();
 const azureSpeechCredentials: AzureSpeechCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "2e15e033f605414bbbfe26cb631ab755",
+  key: "",
 };
 
 const azureLanguageCredentials: AzureLanguageCredentials = {

@@ -28,6 +28,7 @@
   interface Settings {
     locale?: string;
     azureCredentials: string | AzureCredentials;
+    azureRegion: string;
     azureLanguageCredentials?: AzureLanguageCredentials;
     asrDefaultCompleteTimeout?: number;
     asrDefaultNoInputTimeout?: number;
@@ -120,7 +121,7 @@ Example action:
   create SS
   DM -> SS : **spawn**
   DM -> SS : PREPARE
-  SS -> DM : ASRTTS_READY
+  SS --> DM : ASRTTS_READY
   hnote across: Speech Synthesis 
   DM -> SS : SPEAK
   activate SS
