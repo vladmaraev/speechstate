@@ -98,6 +98,7 @@ export type ASREvent =
   | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
   | { type: "STARTSPEECH" }
   | { type: "RECOGNISED" }
+  | { type: "STOPPED" }
   | { type: "RESULT"; value: Hypothesis[] };
 
 export interface ASRContext extends ASRInit {

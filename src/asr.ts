@@ -6,6 +6,7 @@ import {
   fromPromise,
   raise,
   cancel,
+  sendTo,
 } from "xstate";
 
 import {
@@ -28,10 +29,8 @@ export const asrMachine = setup({
     input: {} as ASRInit,
   },
   actions: {
-    recStop: ({ context }) => {
-      context.wsaASRinstance.abort();
-      console.debug("[ASR] stopped");
-    },
+    recStart: sendTo("recStartInstance", { type: "START" }),
+    recStop: sendTo("recStartInstance", { type: "STOP" }),
   },
   actors: {
     getToken: getToken,
@@ -54,8 +53,16 @@ export const asrMachine = setup({
       });
       console.debug("[ASR] READY", input);
     }),
-    recStart: fromCallback(
-      ({ sendBack, input }: { sendBack: any; input: any }) => {
+    createASRInstance: fromCallback(
+      ({
+        sendBack,
+        input,
+        receive,
+      }: {
+        sendBack: any;
+        input: any;
+        receive: any;
+      }) => {
         let asr = new input.wsaASR!();
         asr.grammars = new input.wsaGrammarList!();
         asr.grammars.phrases = input.phrases || [];
@@ -91,14 +98,19 @@ export const asrMachine = setup({
         asr.addEventListener("start", () => {
           sendBack({ type: "STARTED", value: { wsaASRinstance: asr } });
         });
-
-        // receive((event) => {
-        //   console.debug("bla");
-        //   if (event.type === "STOP") {
-        //     asr.abort();
-        //   }
-        // });
-        asr.start();
+        receive((event) => {
+          if (event.type === "REC_STOP") {
+            asr.addEventListener("end", () => {
+              console.debug("[ASR] end");
+              sendBack({ type: "STOPPED" });
+            });
+            console.debug("bla");
+            asr.abort();
+          }
+          if (event.type === "REC_START") {
+            asr.start();
+          }
+        });
       },
     ),
     nluPromise: fromPromise<any, AzureLanguageCredentials & { query: string }>(
@@ -162,26 +174,42 @@ export const asrMachine = setup({
   },
   states: {
     Fail: {},
-    Ready: {
+    Stopping: {
+      entry: [() => console.debug("[ASR.state] stopping"), { type: "recStop" }],
       on: {
-        START: {
-          target: "Recognising",
-          actions: assign({ params: ({ event }) => event.value || {} }),
+        STOPPED: {
+          target: "Ready",
+          actions: [
+            () => console.debug("[ASR] sending ASR_READY"),
+            sendParent({ type: "ASR_READY" }),
+          ],
         },
       },
+      exit: () => console.debug("[ASR.state] exit stopping"),
     },
-    Recognising: {
-      initial: "WaitForRecogniser",
+    Ready: {
       invoke: {
-        id: "recStart",
+        id: "recStartInstance",
         input: ({ context }) => ({
           wsaASR: context.wsaASR,
           wsaGrammarList: context.wsaGrammarList,
           locale: context.locale,
           phrases: (context.params || {}).hints || [],
         }),
-        src: "recStart",
+        src: "createASRInstance",
       },
+      on: {
+        START: {
+          target: "Recognising",
+          actions: [
+            { type: "recStart" },
+            assign({ params: ({ event }) => event.value || {} }), // TODO fix!
+          ],
+        },
+      },
+    },
+    Recognising: {
+      initial: "WaitForRecogniser",
       exit: "recStop",
       on: {
         RESULT: {
@@ -200,7 +228,7 @@ export const asrMachine = setup({
               !!(context.params.nlu && context.azureLanguageCredentials),
           },
           {
-            target: "Ready",
+            target: "Stopping",
             actions: [
               sendParent(({ context }) => ({
                 type: "RECOGNISED",
@@ -213,11 +241,11 @@ export const asrMachine = setup({
           target: "Paused",
         },
         STOP: {
-          target: "Ready",
+          target: "Stopping",
         },
         NOINPUT: {
           actions: sendParent({ type: "ASR_NOINPUT" }),
-          target: "Ready",
+          target: "Stopping",
         },
       },
       states: {
@@ -302,7 +330,7 @@ export const asrMachine = setup({
                     value: context.result,
                   })),
                 ],
-                target: "#asr.Ready",
+                target: "#asr.Stopping",
                 guard: ({ event }) => !(event.output.result || {}).prediction,
               },
               {
@@ -318,7 +346,7 @@ export const asrMachine = setup({
                     nluValue: event.output.result.prediction,
                   })),
                 ],
-                target: "#asr.Ready",
+                target: "#asr.Stopping",
               },
             ],
             onError: {
@@ -329,7 +357,7 @@ export const asrMachine = setup({
                   value: context.result,
                 })),
               ],
-              target: "#asr.Ready",
+              target: "#asr.Stopping",
             },
           },
         },

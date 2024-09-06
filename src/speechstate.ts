@@ -170,12 +170,10 @@ const speechstate = setup({
             },
             Ready: {
               initial: "Idle",
-              entry: [
-                () => console.debug("[SpSt] All ready"),
-                sendParent({ type: "ASRTTS_READY" }),
-              ],
+              entry: [() => console.debug("[SpSt] All ready")],
               states: {
                 Idle: {
+                  entry: sendParent({ type: "ASRTTS_READY" }),
                   meta: { view: "idle" },
                   on: {
                     LISTEN: { target: "WaitForRecogniser" },
@@ -298,27 +296,34 @@ const speechstate = setup({
                           }),
                       ],
                     },
-                    RECOGNISED: {
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "[ASR→SpSt] RECOGNISED",
-                            (event as any).value,
-                            (event as any).nluValue,
-                          ),
-                        sendParent(({ event }) => ({
-                          type: "RECOGNISED",
-                          value: (event as any).value,
-                          nluValue: (event as any).nluValue,
-                        })),
-                      ],
+                    STOPPED: {
                       target: "Idle",
+                      actions: [
+                        () => console.debug("[ASR→SpSt] STOPPED"),
+                        sendParent({ type: "ASR_STOPPED" }),
+                      ],
                     },
                   },
                   states: {
                     Proceed: {
                       meta: { view: "recognising" },
                       on: {
+                        RECOGNISED: {
+                          actions: [
+                            ({ event }) =>
+                              console.debug(
+                                "[ASR→SpSt] RECOGNISED",
+                                (event as any).value,
+                                (event as any).nluValue,
+                              ),
+                            sendParent(({ event }) => ({
+                              type: "RECOGNISED",
+                              value: (event as any).value,
+                              nluValue: (event as any).nluValue,
+                            })),
+                          ],
+                          target: "WaitToStop",
+                        },
                         CONTROL: {
                           target: "Paused",
                           actions: [
@@ -346,6 +351,7 @@ const speechstate = setup({
                         },
                       },
                     },
+                    WaitToStop: {},
                   },
                 },
               },
