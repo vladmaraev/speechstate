@@ -6,3 +6,5 @@ export {
   Agenda,
   RecogniseParameters,
 } from "./types";
+
+export type { SpeechStateExternalEvent } from "./types";

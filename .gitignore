@@ -25,3 +25,4 @@ yarn-error.log*
 # pycharm
 .idea
 /.yarn/cache
+/src/credentials.ts

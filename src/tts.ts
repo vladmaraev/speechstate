@@ -1,61 +1,33 @@
-import { setup, sendParent, assign, fromCallback, stateIn } from "xstate";
+import {
+  setup,
+  sendParent,
+  assign,
+  fromCallback,
+  stateIn,
+  raise,
+} from "xstate";
+
+import {
+  AzureSpeechCredentials,
+  Agenda,
+  TTSInit,
+  TTSEvent,
+  TTSContext,
+  TTSPonyfillInput,
+} from "./types";
 
 import { getToken } from "./getToken";
+
 import createSpeechSynthesisPonyfill from "@davi-ai/web-speech-cognitive-services-davi";
 import type {
   SpeechSynthesisUtterance,
   SpeechSynthesisEventProps,
 } from "@davi-ai/web-speech-cognitive-services-davi";
 
-import { AzureSpeechCredentials, Agenda } from "./types";
-
 interface ConstructableSpeechSynthesisUtterance
   extends SpeechSynthesisUtterance {
   new (s: string);
 }
-
-interface TTSInit {
-  audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
-  azureRegion: string;
-  ttsDefaultVoice: string;
-  ttsLexicon?: string;
-}
-
-interface TTSContext extends TTSInit {
-  azureAuthorizationToken?: string;
-  wsaTTS?: SpeechSynthesis;
-  wsaVoice?: SpeechSynthesisVoice;
-  wsaUtt?: ConstructableSpeechSynthesisUtterance;
-  agenda?: Agenda;
-  buffer?: string;
-  utteranceFromStream?: string;
-}
-
-interface TTSPonyfillInput {
-  audioContext: AudioContext;
-  azureRegion: string;
-  azureAuthorizationToken: string;
-}
-
-type TTSEvent =
-  | { type: "PREPARE" }
-  | { type: "CONTROL" }
-  | { type: "STOP" }
-  | {
-      type: "READY";
-      value: {
-        wsaTTS: SpeechSynthesis;
-        wsaUtt: ConstructableSpeechSynthesisUtterance;
-      };
-    }
-  | { type: "ERROR" }
-  | { type: "SPEAK"; value: Agenda }
-  | { type: "TTS_STARTED" }
-  | { type: "STREAMING_CHUNK"; value: string }
-  | { type: "STREAMING_DONE" }
-  | { type: "SPEAK_COMPLETE" }
-  | { type: "VISEME"; value: SpeechSynthesisEventProps };
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -78,6 +50,27 @@ export const ttsMachine = setup({
           context.buffer.substring(spaceIndex),
       };
     }),
+    assignCurrentVoice: assign(
+      ({
+        event,
+      }: {
+        event: { type: "STREAMING_SET_VOICE"; value: string };
+      }) => {
+        return {
+          currentVoice: event.value,
+        };
+      },
+    ),
+    sendParentCurrentPersona: sendParent(
+      ({
+        event,
+      }: {
+        event: { type: "STREAMING_SET_PERSONA"; value: string };
+      }) => ({
+        type: "STREAMING_SET_PERSONA",
+        value: event.value,
+      }),
+    ),
   },
   actors: {
     getToken: getToken,
@@ -85,16 +78,24 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
-          console.log("received streaming done - closing event stream");
+          console.debug("[TTS] received streaming done - closing event stream");
           sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
         });
         eventSource.addEventListener("STREAMING_RESET", (_event) => {
-          console.log("received streaming reset");
+          console.debug("[TTS] received streaming reset");
         });
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
-          console.log("received streaming chunk:", event);
+          console.debug("[TTS] received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
+        });
+        eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
+          console.debug("[TTS] received streaming voice set command:", event);
+          sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
+        });
+        eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
+          console.debug("[TTS] received streaming persona set command:", event);
+          sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
         });
       },
     ),
@@ -251,6 +252,14 @@ export const ttsMachine = setup({
           states: {
             Buffer: {
               initial: "BufferIdle",
+              on: {
+                STREAMING_SET_VOICE: {
+                  actions: "assignCurrentVoice",
+                },
+                STREAMING_SET_PERSONA: {
+                  actions: "sendParentCurrentPersona",
+                },
+              },
               states: {
                 BufferIdle: {
                   id: "BufferIdle",
@@ -412,7 +421,9 @@ export const ttsMachine = setup({
                           wsaUtt: context.wsaUtt,
                           ttsLexicon: context.ttsLexicon,
                           voice:
-                            context.agenda.voice || context.ttsDefaultVoice,
+                            context.currentVoice ||
+                            context.agenda.voice ||
+                            context.ttsDefaultVoice,
                           utterance: context.utteranceFromStream,
                         }),
                       },
@@ -497,7 +508,10 @@ export const ttsMachine = setup({
           ],
         },
         onError: {
-          actions: ({ event }) => console.error("[TTS] getToken error", event),
+          actions: [
+            raise({ type: "ERROR" }),
+            ({ event }) => console.error("[TTS] getToken error", event),
+          ],
           target: "Fail",
         },
       },
