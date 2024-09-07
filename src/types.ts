@@ -32,6 +32,7 @@ export interface Agenda {
   voice?: string;
   stream?: string;
   fillerDelay?: number;
+  visemes?: boolean;
 }
 
 export interface Hypothesis {
@@ -55,7 +56,6 @@ type SSEventExtIn =
   | { type: "SPEAK"; value: Agenda }
   | { type: "LISTEN"; value: RecogniseParameters };
 
-/** for sendParent, not type-checked */
 type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
   | { type: "ASRTTS_READY" }
@@ -63,6 +63,7 @@ type SSEventExtOut =
   | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
+  | { type: "VISEME"; value: any }
   | { type: "STREAMING_SET_PERSONA"; value: string };
 
 type SSEventIntIn =
@@ -128,7 +129,8 @@ export interface ASRPonyfillInput {
   speechRecognitionEndpointId?: string;
 }
 
-export interface MySpeechSynthesisUtterance extends SpeechSynthesisUtterance {
+export interface ConstructableSpeechSynthesisUtterance
+  extends SpeechSynthesisUtterance {
   new (s: string);
 }
 
@@ -144,7 +146,7 @@ export interface TTSContext extends TTSInit {
   azureAuthorizationToken?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
-  wsaUtt?: MySpeechSynthesisUtterance;
+  wsaUtt?: ConstructableSpeechSynthesisUtterance;
   agenda?: Agenda;
   buffer?: string;
   currentVoice?: string;
@@ -165,7 +167,7 @@ export type TTSEvent =
       type: "READY";
       value: {
         wsaTTS: SpeechSynthesis;
-        wsaUtt: MySpeechSynthesisUtterance;
+        wsaUtt: ConstructableSpeechSynthesisUtterance;
       };
     }
   | { type: "ERROR" }
@@ -175,4 +177,5 @@ export type TTSEvent =
   | { type: "STREAMING_SET_VOICE"; value: string }
   | { type: "STREAMING_SET_PERSONA"; value: string }
   | { type: "STREAMING_DONE" }
-  | { type: "SPEAK_COMPLETE" };
+  | { type: "SPEAK_COMPLETE" }
+  | { type: "VISEME"; value: any };

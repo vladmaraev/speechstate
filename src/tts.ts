@@ -8,26 +8,18 @@ import {
 } from "xstate";
 
 import {
-  AzureSpeechCredentials,
   Agenda,
   TTSInit,
   TTSEvent,
   TTSContext,
   TTSPonyfillInput,
+  ConstructableSpeechSynthesisUtterance,
 } from "./types";
 
 import { getToken } from "./getToken";
 
 import createSpeechSynthesisPonyfill from "@davi-ai/web-speech-cognitive-services-davi";
-import type {
-  SpeechSynthesisUtterance,
-  SpeechSynthesisEventProps,
-} from "@davi-ai/web-speech-cognitive-services-davi";
-
-interface ConstructableSpeechSynthesisUtterance
-  extends SpeechSynthesisUtterance {
-  new (s: string);
-}
+import type { SpeechSynthesisEventProps } from "@davi-ai/web-speech-cognitive-services-davi";
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -113,7 +105,7 @@ export const ttsMachine = setup({
       tts.onvoiceschanged = () => {
         const voices = tts.getVoices();
         if (voices.length > 0) {
-          console.debug("[TTS] READY", tts);
+          console.debug("[TTS] READY");
           sendBack({
             type: "READY",
             value: { wsaTTS: tts, wsaUtt: ttsUtterance },
@@ -132,6 +124,7 @@ export const ttsMachine = setup({
         ttsLexicon: string;
         wsaUtt: ConstructableSpeechSynthesisUtterance;
         wsaTTS: SpeechSynthesis;
+        visemes?: boolean;
       }
     >(({ sendBack, input }) => {
       if (["", " "].includes(input.utterance)) {
@@ -154,15 +147,17 @@ export const ttsMachine = setup({
           sendBack({ type: "SPEAK_COMPLETE" });
           console.debug("[TTS] SPEAK_COMPLETE");
         };
-        utterance.onviseme = (event: SpeechSynthesisEventProps) => {
-          const name = event.name;
-          const fromStart = event.elapsedTime / 1e6;
-          sendBack({
-            type: "VISEME",
-            value: { name: name, frames: [visemeStart, fromStart] },
-          });
-          visemeStart = event.elapsedTime / 1e6;
-        };
+        if (input.visemes) {
+          utterance.onviseme = (event: SpeechSynthesisEventProps) => {
+            const name = event.name;
+            const fromStart = event.elapsedTime / 1e6;
+            sendBack({
+              type: "VISEME",
+              value: { name: name, frames: [visemeStart, fromStart] },
+            });
+            visemeStart = event.elapsedTime / 1e6;
+          };
+        }
         input.wsaTTS.speak(utterance);
       }
     }),
@@ -420,6 +415,7 @@ export const ttsMachine = setup({
                           wsaTTS: context.wsaTTS,
                           wsaUtt: context.wsaUtt,
                           ttsLexicon: context.ttsLexicon,
+                          visemes: context.agenda.visemes,
                           voice:
                             context.currentVoice ||
                             context.agenda.voice ||
@@ -454,10 +450,12 @@ export const ttsMachine = setup({
               actions: sendParent({ type: "TTS_STARTED" }),
             },
             VISEME: {
-              actions: sendParent(({ event }) => ({
-                type: "VISEME",
-                value: event.value,
-              })),
+              actions: sendParent(
+                ({ event }: { event: { type: "VISEME"; value: any } }) => ({
+                  type: "VISEME",
+                  value: event.value,
+                }),
+              ),
             },
             SPEAK_COMPLETE: {
               target: "Idle",
@@ -473,6 +471,7 @@ export const ttsMachine = setup({
                   wsaUtt: context.wsaUtt,
                   ttsLexicon: context.ttsLexicon,
                   voice: context.agenda.voice || context.ttsDefaultVoice,
+                  visemes: context.agenda.visemes,
                   // streamURL: context.agenda.streamURL,
                   utterance: context.agenda.utterance,
                 }),

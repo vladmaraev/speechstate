@@ -2,12 +2,11 @@
   "name": "speechstate",
   "version": "2.5.0",
   "license": "GPL-3.0",
+  "type": "module",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "/dist"
-  ],
+  "files": ["/dist"],
   "dependencies": {
     "@davi-ai/web-speech-cognitive-services-davi": "^2.0.8",
     "microsoft-cognitiveservices-speech-sdk": "^1.38.0",
@@ -18,20 +17,14 @@
     "dev": "vite",
     "compile": "tsc",
     "test": "vitest",
-    "test:browser": "vitest"
+    "test:browser": "vitest",
+    "sse": "node test/server"
   },
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "extends": ["react-app", "react-app/jest"]
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
+    "production": [">0.2%", "not dead", "not op_mini all"],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
@@ -45,6 +38,8 @@
     "@types/webspeechapi": "^0.0.29",
     "@vitest/browser": "^2.0.5",
     "buffer": "^5.5.0||^6.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "jest": "^29.5.0",
     "jest-environment-jsdom": "^29.5.0",
     "ts-jest": "^29.1.0",
@@ -54,11 +49,7 @@
     "webdriverio": "^9.0.7",
     "ws": "^8.16.0"
   },
-  "trustedDependencies": [
-    "p-defer-es5",
-    "edgedriver",
-    "core-js-pure"
-  ],
+  "trustedDependencies": ["p-defer-es5", "edgedriver", "core-js-pure"],
   "packageManager": "yarn@3.6.4",
   "description": "* SDK",
   "directories": {

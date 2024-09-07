@@ -195,16 +195,7 @@ const speechstate = setup({
                   },
                 },
                 Speaking: {
-                  initial: "Proceed",
-                  entry: [
-                    ({ event }) =>
-                      console.debug("[SpSt→TTS] SPEAK", (event as any).value),
-                    ({ context, event }) =>
-                      context.ttsRef.send({
-                        type: "SPEAK",
-                        value: (event as any).value,
-                      }),
-                  ],
+                  initial: "Start",
                   on: {
                     STOP: {
                       target: "#speechstate.Stopped",
@@ -216,10 +207,14 @@ const speechstate = setup({
                           }),
                       ],
                     },
-                    TTS_STARTED: {
+                    VISEME: {
                       actions: [
-                        () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                        sendParent({ type: "TTS_STARTED" }),
+                        ({ event }) =>
+                          console.debug("[TTS→SpSt] VISEME", event.value),
+                        sendParent(({ event }) => ({
+                          type: "VISEME",
+                          value: event.value,
+                        })),
                       ],
                     },
                     SPEAK_COMPLETE: {
@@ -229,76 +224,44 @@ const speechstate = setup({
                         sendParent({ type: "SPEAK_COMPLETE" }),
                       ],
                     },
-                    STREAMING_SET_PERSONA: {
-                      actions: [
-                        () => console.debug("[TTS→SpSt] STREAMING_SET_PERSONA"),
-                        sendParent(({ event }) => ({
-                          type: "STREAMING_SET_PERSONA",
-                          value: event.value,
-                        })),
-                      ],
-                    },
                   },
-                  Speaking: {
-                    initial: "Proceed",
-                    entry: [
-                      ({ event }) =>
-                        console.debug("[SpSt→TTS] SPEAK", (event as any).value),
-                      ({ context, event }) =>
-                        context.ttsRef.send({
-                          type: "SPEAK",
-                          value: (event as any).value,
-                        }),
-                    ],
-                    on: {
-                      STOP: {
-                        target: "#speechstate.Stopped",
-                        actions: [
-                          ({}) => console.debug("[SpSt→TTS] STOP"),
-                          ({ context }) =>
-                            context.ttsRef.send({
-                              type: "STOP",
-                            }),
-                        ],
-                      },
-                      TTS_STARTED: {
-                        actions: [
-                          () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                          sendParent({ type: "TTS_STARTED" }),
-                        ],
-                      },
-                      VISEME: {
-                        actions: [
-                          ({ event }) =>
-                            console.debug("[TTS→SpSt] VISEME", event.value),
-                          sendParent(({ event }) => ({
-                            type: "VISEME",
-                            value: event.value,
-                          })),
-                        ],
-                      },
-                      SPEAK_COMPLETE: {
-                        target: "Idle",
-                        actions: [
-                          () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
-                          sendParent({ type: "SPEAK_COMPLETE" }),
-                        ],
+                  states: {
+                    Start: {
+                      meta: { view: "idle" },
+                      entry: [
+                        ({ event }) =>
+                          console.debug(
+                            "[SpSt→TTS] SPEAK",
+                            (event as any).value,
+                          ),
+                        ({ context, event }) =>
+                          context.ttsRef.send({
+                            type: "SPEAK",
+                            value: (event as any).value,
+                          }),
+                      ],
+                      on: {
+                        TTS_STARTED: {
+                          target: "Proceed",
+                          actions: [
+                            () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                            sendParent({ type: "TTS_STARTED" }),
+                          ],
+                        },
                       },
                     },
-                    states: {
-                      Proceed: {
-                        meta: { view: "speaking" },
-                        on: {
-                          CONTROL: {
-                            target: "Paused",
-                            actions: [
-                              () => console.debug("[SpSt→TTS] CONTROL"),
-                              ({ context }) =>
-                                context.ttsRef.send({
-                                  type: "CONTROL",
-                                }),
-                            ],
-                          },
+                    Proceed: {
+                      meta: { view: "speaking" },
+                      on: {
+                        CONTROL: {
+                          target: "Paused",
+                          actions: [
+                            () => console.debug("[SpSt→TTS] CONTROL"),
+                            ({ context }) =>
+                              context.ttsRef.send({
+                                type: "CONTROL",
+                              }),
+                          ],
                         },
                       },
                     },

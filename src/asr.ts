@@ -52,7 +52,8 @@ export const asrMachine = setup({
           wsaGrammarList: SpeechGrammarList,
         },
       });
-      console.debug("[ASR] READY", input);
+      const { azureAuthorizationToken, ...rest } = input;
+      console.debug("[ASR] READY", rest);
     }),
     recStart: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: any }) => {

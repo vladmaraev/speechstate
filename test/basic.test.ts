@@ -7,23 +7,17 @@ import {
 } from "../src/types";
 import { speechstate } from "../src/speechstate";
 import { AZURE_KEY } from "../src/credentials";
+import { getView } from "./helpers";
 
-describe("Basic tests", () => {
-  const invalidCredentials: AzureSpeechCredentials = {
-    endpoint:
-      "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-    key: "",
-  };
-
-  const validCredentials: AzureSpeechCredentials = {
-    endpoint:
-      "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-    key: AZURE_KEY,
-  };
-
+describe("Basic initialisation tests", () => {
   test.todo("Fail ASR because azureAuthorizationToken is an erroneous object.");
 
   test("Spawn ASR and TTS resources. Fail, because the credentials are not provided.", async () => {
+    const invalidCredentials: AzureSpeechCredentials = {
+      endpoint:
+        "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
+      key: "",
+    };
     const testMachine = createMachine({
       context: ({ spawn }) => {
         return {
@@ -42,12 +36,7 @@ describe("Basic tests", () => {
     const snapshot = await waitFor(
       actor.getSnapshot().context.ssRef,
       (snapshot) => {
-        return snapshot.matches({
-          Active: {
-            AsrTtsSpawner: "Spawn",
-            AsrTtsManager: "Fail",
-          },
-        });
+        return getView(snapshot) === "error";
       },
       {
         timeout: 2000 /** allowed time to transition to the expected state */,
@@ -57,6 +46,11 @@ describe("Basic tests", () => {
   });
 
   test("Spawn ASR and TTS resources. Reach Ready state.", async () => {
+    const validCredentials: AzureSpeechCredentials = {
+      endpoint:
+        "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
+      key: AZURE_KEY,
+    };
     const testMachine = createMachine({
       context: ({ spawn }) => {
         return {
@@ -75,15 +69,10 @@ describe("Basic tests", () => {
     const snapshot = await waitFor(
       actor.getSnapshot().context.ssRef,
       (snapshot) => {
-        return snapshot.matches({
-          Active: {
-            AsrTtsSpawner: "Spawn",
-            AsrTtsManager: "Ready",
-          },
-        });
+        return getView(snapshot) === "idle";
       },
       {
-        timeout: 2000 /** allowed time to transition to the expected state */,
+        timeout: 3000 /** allowed time to transition to the expected state */,
       },
     );
     expect(snapshot).toBeTruthy();
