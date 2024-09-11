@@ -137,14 +137,6 @@ const speechstate = setup({
         AsrTtsManager: {
           initial: "Initialize",
           on: {
-            TTS_READY: {
-              actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-              target: ".PreReady",
-            },
-            ASR_READY: {
-              actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-              target: ".PreReady",
-            },
             // ASR_ERROR not implemented
             TTS_ERROR: {
               actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
@@ -155,6 +147,14 @@ const speechstate = setup({
                 () => console.debug("[ASR→SpSt] NOINPUT"),
                 sendParent({ type: "ASR_NOINPUT" }),
               ],
+            },
+            LISTEN_COMPLETE: {
+              actions: [
+                () => console.debug("[ASR→SpSt] LISTEN_COMPLETE"),
+                sendParent({
+                  type: "LISTEN_COMPLETE",
+                }),
+              ],
               target: ".Ready",
             },
             STOP: "#speechstate.Stopped",
@@ -162,6 +162,16 @@ const speechstate = setup({
           states: {
             Initialize: {
               meta: { view: "not-ready" },
+              on: {
+                TTS_READY: {
+                  actions: () => console.debug("[TTS→SpSt] TTS_READY"),
+                  target: "PreReady",
+                },
+                ASR_READY: {
+                  actions: () => console.debug("[ASR→SpSt] ASR_READY"),
+                  target: "PreReady",
+                },
+              },
             },
             PreReady: {
               meta: { view: "not-ready" },
@@ -330,7 +340,6 @@ const speechstate = setup({
                           nluValue: (event as any).nluValue,
                         })),
                       ],
-                      target: "Idle",
                     },
                   },
                   states: {

@@ -6,7 +6,9 @@
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "dependencies": {
     "@davi-ai/web-speech-cognitive-services-davi": "^2.0.8",
     "microsoft-cognitiveservices-speech-sdk": "^1.38.0",
@@ -21,10 +23,17 @@
     "sse": "node test/server"
   },
   "eslintConfig": {
-    "extends": ["react-app", "react-app/jest"]
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
@@ -49,7 +58,11 @@
     "webdriverio": "^9.0.7",
     "ws": "^8.16.0"
   },
-  "trustedDependencies": ["p-defer-es5", "edgedriver", "core-js-pure"],
+  "trustedDependencies": [
+    "p-defer-es5",
+    "edgedriver",
+    "core-js-pure"
+  ],
   "packageManager": "yarn@3.6.4",
   "description": "* SDK",
   "directories": {

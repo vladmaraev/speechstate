@@ -1,3 +1,5 @@
+import { SpeechRecognizer } from "microsoft-cognitiveservices-speech-sdk";
+
 export interface AzureSpeechCredentials {
   endpoint: string;
   key: string;
@@ -82,13 +84,7 @@ export interface MySpeechGrammarList extends SpeechGrammarList {
 }
 
 export type ASREvent =
-  | {
-      type: "READY";
-      value: {
-        wsaASR: MySpeechRecognition;
-        wsaGrammarList: MySpeechGrammarList;
-      };
-    }
+  | { type: "NEW_READY"; value: { asr: SpeechRecognition } }
   | { type: "ERROR" }
   | { type: "NOINPUT" }
   | { type: "CONTROL" }
@@ -99,13 +95,12 @@ export type ASREvent =
   | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
   | { type: "STARTSPEECH" }
   | { type: "RECOGNISED" }
+  | { type: "STOP" }
+  | { type: "LISTEN_COMPLETE" }
   | { type: "RESULT"; value: Hypothesis[] };
 
 export interface ASRContext extends ASRInit {
   azureAuthorizationToken?: string;
-  wsaASR?: MySpeechRecognition;
-  wsaASRinstance?: MySpeechRecognition;
-  wsaGrammarList?: MySpeechGrammarList;
   result?: Hypothesis[];
   nluResult?: any; // TODO
   params?: RecogniseParameters;
@@ -122,11 +117,17 @@ export interface ASRInit {
   azureLanguageCredentials?: AzureLanguageCredentials;
 }
 
+export interface ASRInstanceInput {
+  asr: SpeechRecognition;
+  locale?: string;
+}
+
 export interface ASRPonyfillInput {
   audioContext: AudioContext;
   azureAuthorizationToken: string;
   azureRegion: string;
   speechRecognitionEndpointId?: string;
+  locale: string;
 }
 
 export interface ConstructableSpeechSynthesisUtterance

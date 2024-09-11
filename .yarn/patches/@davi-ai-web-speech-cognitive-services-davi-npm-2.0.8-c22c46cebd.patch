@@ -1,5 +1,5 @@
 diff --git a/dist/index.js b/dist/index.js
-index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5792baa0f 100644
+index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..054da0128215d29df090fe5d9e485453cf0ddd4d 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -1,13 +1,17 @@
@@ -23,7 +23,7 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
  }
  
  function $parcel$interopDefault(a) {
-@@ -16,144 +20,253 @@ function $parcel$interopDefault(a) {
+@@ -16,144 +20,251 @@ function $parcel$interopDefault(a) {
  
  $parcel$defineInteropFlag(module.exports);
  
@@ -182,6 +182,7 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
 +            Lexical: lexical,
 +            MaskedITN: maskedITN,
 +          }) => ({
++            isFinal: true,
 +            confidence: confidence,
 +            transcript:
 +              textNormalization === "itn"
@@ -193,9 +194,6 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
 +                    : display,
 +          }),
 +        ),
-+      {
-+        isFinal: true,
-+      },
 +    );
 +    return resultList;
 +  }
@@ -395,7 +393,7 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
  // https://docs.microsoft.com/en-us/javascript/api/microsoft-cognitiveservices-speech-sdk/speechconfig?view=azure-node-latest#outputformat
  // {
  //   "RecognitionStatus": "Success",
-@@ -175,956 +288,1295 @@ function $cec424af042710dc$export$2e2bcd8739ae039({ credentials: credentials, lo
+@@ -175,956 +286,1301 @@ function $cec424af042710dc$export$2e2bcd8739ae039({ credentials: credentials, lo
  //   "Duration": 0
  // }
  // const { AudioConfig, OutputFormat, ResultReason, SpeechConfig, SpeechRecognizer } = SDK;
@@ -778,7 +776,7 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
 +    this.processSendEvent = (type, data) => {
 +      this._debug &&
 +        console.log(
-+          "Speech Recognizer Event : type = ",
++          "[[Speech Recognizer Event]] : type = ",
 +          type,
 +          "\n, data = ",
 +          data,
@@ -1832,13 +1830,19 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
 +  onstart() {}
 +  onend() {}
 +  onerror(error) {
-+    console.error(error);
++    console.log(error);
 +  }
 +  onsynthesisstart() {}
 +  onsynthesiscompleted() {}
-+  onboundary(data) {}
-+  onviseme(data) {}
-+  onmark(data) {}
++  onboundary(data) {
++    // console.log(data);
++  }
++  onviseme(data) {
++    // console.log(data);
++  }
++  onmark(data) {
++    // console.log(data);
++  }
  }
 -var $fd1e2557ea351c52$export$2e2bcd8739ae039 = $fd1e2557ea351c52$var$SpeechSynthesisUtterance;
 -
@@ -1958,7 +1962,7 @@ index 9a0e0a190f09c6eb75cd210e4ac16217043722e4..03d3efc8adbb94bc76b4e1911d7b05b5
 +      return [];
 +    };
 +    this.onvoiceschanged = () => {
-+      console.debug("Voices changed");
++      // console.log("Voices changed");
 +    };
 +    // Extract parameters from options using the patchOptions function
 +    const {

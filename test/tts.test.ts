@@ -1,9 +1,9 @@
-import { createActor, setup, waitFor } from "xstate";
-import { bench, describe, test, expect, beforeEach } from "vitest";
+import { createActor, setup } from "xstate";
+import { describe, test, expect, beforeEach } from "vitest";
 
 import { speechstate } from "../src/speechstate";
 import { AZURE_KEY } from "../src/credentials";
-import { getView, waitForView } from "./helpers";
+import { waitForView } from "./helpers";
 
 describe("Synthesis test", async () => {
   const testMachine = setup({}).createMachine({

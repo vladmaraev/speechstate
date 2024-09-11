@@ -1495,7 +1495,7 @@ __metadata:
 
 "@davi-ai/web-speech-cognitive-services-davi@patch:@davi-ai/web-speech-cognitive-services-davi@npm%3A2.0.8#./.yarn/patches/@davi-ai-web-speech-cognitive-services-davi-npm-2.0.8-c22c46cebd.patch::locator=speechstate%40workspace%3A.":
   version: 2.0.8
-  resolution: "@davi-ai/web-speech-cognitive-services-davi@patch:@davi-ai/web-speech-cognitive-services-davi@npm%3A2.0.8#./.yarn/patches/@davi-ai-web-speech-cognitive-services-davi-npm-2.0.8-c22c46cebd.patch::version=2.0.8&hash=227e31&locator=speechstate%40workspace%3A."
+  resolution: "@davi-ai/web-speech-cognitive-services-davi@patch:@davi-ai/web-speech-cognitive-services-davi@npm%3A2.0.8#./.yarn/patches/@davi-ai-web-speech-cognitive-services-davi-npm-2.0.8-c22c46cebd.patch::version=2.0.8&hash=1ef8c6&locator=speechstate%40workspace%3A."
   dependencies:
     base64-arraybuffer: 1.0.2
     memoize-one: 6.0.0
@@ -1504,7 +1504,7 @@ __metadata:
     p-defer: 4.0.0
     p-defer-es5: 2.0.1
     simple-update-in: 2.2.0
-  checksum: c34d0a8064df6f1457788cab0e016f40a5e4526be1c08a3cb0406ef630ba0dcfd0ca075f3c944164ee08fcb6c8c3f037b5563e38907e5541787f5c0d6ca5a888
+  checksum: 3691cd841129d1e644a179423da4d9441454d57797540f836a4fa2d31e7cc0092a6786b415615d0ef7e78dd9d6443e54d9a4b9e366c2f5211201f44264bf7383
   languageName: node
   linkType: hard
 
