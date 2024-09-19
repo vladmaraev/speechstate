@@ -18,8 +18,8 @@ import {
 
 import { getToken } from "./getToken";
 
-import createSpeechSynthesisPonyfill from "@davi-ai/web-speech-cognitive-services-davi";
-import type { SpeechSynthesisEventProps } from "@davi-ai/web-speech-cognitive-services-davi";
+import createSpeechSynthesisPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
+import type { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 

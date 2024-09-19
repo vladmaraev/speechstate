@@ -10,9 +10,7 @@
     "/dist"
   ],
   "dependencies": {
-    "@davi-ai/web-speech-cognitive-services-davi": "^2.0.8",
-    "microsoft-cognitiveservices-speech-sdk": "^1.38.0",
-    "web-speech-cognitive-services": "^7.1.3",
+    "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.11",
     "xstate": "^5.17.4"
   },
   "scripts": {

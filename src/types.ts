@@ -1,5 +1,3 @@
-import { SpeechRecognizer } from "microsoft-cognitiveservices-speech-sdk";
-
 export interface AzureSpeechCredentials {
   endpoint: string;
   key: string;
@@ -84,7 +82,7 @@ export interface MySpeechGrammarList extends SpeechGrammarList {
 }
 
 export type ASREvent =
-  | { type: "NEW_READY"; value: { asr: SpeechRecognition } }
+  | { type: "READY"; value: { asr: SpeechRecognition } }
   | { type: "ERROR" }
   | { type: "NOINPUT" }
   | { type: "CONTROL" }
@@ -94,7 +92,7 @@ export type ASREvent =
     }
   | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
   | { type: "STARTSPEECH" }
-  | { type: "RECOGNISED" }
+  | { type: "RECOGNISED"; value: Hypothesis[] }
   | { type: "STOP" }
   | { type: "LISTEN_COMPLETE" }
   | { type: "RESULT"; value: Hypothesis[] };
@@ -122,7 +120,7 @@ export interface ASRInstanceInput {
   locale?: string;
 }
 
-export interface ASRPonyfillInput {
+export interface ASRPonyfillInput extends RecogniseParameters {
   audioContext: AudioContext;
   azureAuthorizationToken: string;
   azureRegion: string;

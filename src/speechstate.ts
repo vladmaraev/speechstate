@@ -2,7 +2,6 @@ import { setup, assign, fromPromise, sendParent, stopChild } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
-import type { SpeechSynthesisEventProps } from "@davi-ai/web-speech-cognitive-services-davi";
 import type {
   Settings,
   Agenda,
