@@ -2,7 +2,14 @@ import { setup, assign, fromPromise, sendParent, stopChild } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 
-import { Settings, SpeechStateEvent } from "./types";
+import type {
+  Settings,
+  Agenda,
+  Hypothesis,
+  RecogniseParameters,
+  SpeechStateEvent,
+} from "./types";
+
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
@@ -129,14 +136,6 @@ const speechstate = setup({
         AsrTtsManager: {
           initial: "Initialize",
           on: {
-            TTS_READY: {
-              actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-              target: ".PreReady",
-            },
-            ASR_READY: {
-              actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-              target: ".PreReady",
-            },
             // ASR_ERROR not implemented
             TTS_ERROR: {
               actions: () => console.error("[TTS→SpSt] TTS_ERROR"),
@@ -147,6 +146,14 @@ const speechstate = setup({
                 () => console.debug("[ASR→SpSt] NOINPUT"),
                 sendParent({ type: "ASR_NOINPUT" }),
               ],
+            },
+            LISTEN_COMPLETE: {
+              actions: [
+                () => console.debug("[ASR→SpSt] LISTEN_COMPLETE"),
+                sendParent({
+                  type: "LISTEN_COMPLETE",
+                }),
+              ],
               target: ".Ready",
             },
             STOP: "#speechstate.Stopped",
@@ -154,6 +161,16 @@ const speechstate = setup({
           states: {
             Initialize: {
               meta: { view: "not-ready" },
+              on: {
+                TTS_READY: {
+                  actions: () => console.debug("[TTS→SpSt] TTS_READY"),
+                  target: "PreReady",
+                },
+                ASR_READY: {
+                  actions: () => console.debug("[ASR→SpSt] ASR_READY"),
+                  target: "PreReady",
+                },
+              },
             },
             PreReady: {
               meta: { view: "not-ready" },
@@ -187,16 +204,7 @@ const speechstate = setup({
                   },
                 },
                 Speaking: {
-                  initial: "Proceed",
-                  entry: [
-                    ({ event }) =>
-                      console.debug("[SpSt→TTS] SPEAK", (event as any).value),
-                    ({ context, event }) =>
-                      context.ttsRef.send({
-                        type: "SPEAK",
-                        value: (event as any).value,
-                      }),
-                  ],
+                  initial: "Start",
                   on: {
                     STOP: {
                       target: "#speechstate.Stopped",
@@ -208,10 +216,14 @@ const speechstate = setup({
                           }),
                       ],
                     },
-                    TTS_STARTED: {
+                    VISEME: {
                       actions: [
-                        () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                        sendParent({ type: "TTS_STARTED" }),
+                        ({ event }) =>
+                          console.debug("[TTS→SpSt] VISEME", event.value),
+                        sendParent(({ event }) => ({
+                          type: "VISEME",
+                          value: event.value,
+                        })),
                       ],
                     },
                     SPEAK_COMPLETE: {
@@ -221,17 +233,32 @@ const speechstate = setup({
                         sendParent({ type: "SPEAK_COMPLETE" }),
                       ],
                     },
-                    STREAMING_SET_PERSONA: {
-                      actions: [
-                        () => console.debug("[TTS→SpSt] STREAMING_SET_PERSONA"),
-                        sendParent(({ event }) => ({
-                          type: "STREAMING_SET_PERSONA",
-                          value: event.value,
-                        })),
-                      ],
-                    },
                   },
                   states: {
+                    Start: {
+                      meta: { view: "idle" },
+                      entry: [
+                        ({ event }) =>
+                          console.debug(
+                            "[SpSt→TTS] SPEAK",
+                            (event as any).value,
+                          ),
+                        ({ context, event }) =>
+                          context.ttsRef.send({
+                            type: "SPEAK",
+                            value: (event as any).value,
+                          }),
+                      ],
+                      on: {
+                        TTS_STARTED: {
+                          target: "Proceed",
+                          actions: [
+                            () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                            sendParent({ type: "TTS_STARTED" }),
+                          ],
+                        },
+                      },
+                    },
                     Proceed: {
                       meta: { view: "speaking" },
                       on: {
@@ -250,6 +277,7 @@ const speechstate = setup({
                     Paused: {
                       meta: { view: "speaking-paused" },
                       on: {
+                        SPEAK_COMPLETE: {},
                         CONTROL: {
                           target: "Proceed",
                           actions: [
@@ -267,8 +295,7 @@ const speechstate = setup({
                 WaitForRecogniser: {
                   meta: { view: "idle" },
                   entry: [
-                    ({ event }) =>
-                      console.debug("[SpSt→ASR] START", (event as any).value),
+                    () => console.debug("[SpSt→ASR] START"),
                     ({ context, event }) =>
                       context.asrRef.send({
                         type: "START",
@@ -312,7 +339,6 @@ const speechstate = setup({
                           nluValue: (event as any).nluValue,
                         })),
                       ],
-                      target: "Idle",
                     },
                   },
                   states: {

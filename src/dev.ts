@@ -7,13 +7,14 @@ import {
   Settings,
 } from "./types";
 import { createBrowserInspector } from "@statelyai/inspect";
+import { AZURE_KEY } from "./credentials";
 
 const inspector = createBrowserInspector();
 
 const azureSpeechCredentials: AzureSpeechCredentials = {
   endpoint:
     "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "",
+  key: AZURE_KEY,
 };
 
 const azureLanguageCredentials: AzureLanguageCredentials = {
