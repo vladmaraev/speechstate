@@ -10,7 +10,7 @@
     "/dist"
   ],
   "dependencies": {
-    "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.11",
+    "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.12",
     "xstate": "^5.17.4"
   },
   "scripts": {

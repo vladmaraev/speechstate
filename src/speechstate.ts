@@ -295,8 +295,7 @@ const speechstate = setup({
                 WaitForRecogniser: {
                   meta: { view: "idle" },
                   entry: [
-                    ({ event }) =>
-                      console.debug("[SpSt→ASR] START", (event as any).value),
+                    () => console.debug("[SpSt→ASR] START"),
                     ({ context, event }) =>
                       context.asrRef.send({
                         type: "START",

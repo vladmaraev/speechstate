@@ -43,8 +43,17 @@ export const asrMachine = setup({
     cancel_noinput_timeout: cancel("timeout"),
   },
   guards: {
-    nlu_is_activated: ({ context }) =>
-      !!((context.params || {}).nlu && context.azureLanguageCredentials),
+    nlu_is_activated: ({ context }) => {
+      const nlu = (context.params || {}).nlu;
+      if (nlu) {
+        if (typeof nlu === "object") {
+          return true;
+        } else if (context.azureLanguageCredentials) {
+          return true;
+        }
+      }
+      return false;
+    },
   },
   actors: {
     getToken: getToken,
@@ -54,7 +63,7 @@ export const asrMachine = setup({
           createSpeechRecognitionPonyfill(
             {
               audioContext: input.audioContext,
-              // speechRecognitionEndpointId: input.speechRecognitionEndpointId, // ? need to check, probably it is supported but types are problematic
+              speechRecognitionEndpointId: input.speechRecognitionEndpointId,
               credentials: {
                 region: input.azureRegion,
                 authorizationToken: input.azureAuthorizationToken,
@@ -119,38 +128,39 @@ export const asrMachine = setup({
         });
       },
     ),
-    nluPromise: fromPromise<any, AzureLanguageCredentials & { query: string }>(
-      async ({ input }) => {
-        const response = await fetch(
-          new Request(input.endpoint, {
-            method: "POST",
-            headers: {
-              "Ocp-Apim-Subscription-Key": input.key,
-              "Content-Type": "application/json",
+    nluPromise: fromPromise<
+      any,
+      AzureLanguageCredentials & { query: string; locale: string }
+    >(async ({ input }) => {
+      const response = await fetch(
+        new Request(input.endpoint, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": input.key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            kind: "Conversation",
+            analysisInput: {
+              conversationItem: {
+                id: "PARTICIPANT_ID_HERE",
+                text: input.query,
+                modality: "text",
+                language: input.locale,
+                participantId: "PARTICIPANT_ID_HERE",
+              },
             },
-            body: JSON.stringify({
-              kind: "Conversation",
-              analysisInput: {
-                conversationItem: {
-                  id: "PARTICIPANT_ID_HERE",
-                  text: input.query,
-                  modality: "text",
-                  language: "en-US", // TODO
-                  participantId: "PARTICIPANT_ID_HERE",
-                },
-              },
-              parameters: {
-                projectName: input.projectName,
-                verbose: true,
-                deploymentName: input.deploymentName,
-                stringIndexType: "TextElement_V8",
-              },
-            }),
+            parameters: {
+              projectName: input.projectName,
+              verbose: true,
+              deploymentName: input.deploymentName,
+              stringIndexType: "TextElement_V8",
+            },
           }),
-        );
-        return response.json();
-      },
-    ),
+        }),
+      );
+      return response.json();
+    }),
   },
 }).createMachine({
   id: "asr",
@@ -327,6 +337,7 @@ export const asrMachine = setup({
             projectName: c.projectName,
             deploymentName: c.deploymentName,
             query: context.result[0].utterance,
+            locale: (context.params || {}).locale || context.locale,
           };
         },
         onDone: [

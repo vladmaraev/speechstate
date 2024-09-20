@@ -2,8 +2,12 @@ import { createActor, setup, waitFor, assign } from "xstate";
 import { describe, test, expect, beforeEach } from "vitest";
 
 import { speechstate } from "../src/speechstate";
-import { AZURE_KEY } from "../src/credentials";
-import { waitForView } from "./helpers";
+import {
+  AZURE_KEY,
+  CUSTOM_ASR_ENDPOINT_ID,
+  AZURE_LANGUAGE_CREDENTIALS,
+} from "../src/credentials";
+import { waitForView, pause } from "./helpers";
 import { SpeechStateExternalEvent } from "../src/types";
 
 describe("Recognition test", async () => {
@@ -13,7 +17,10 @@ describe("Recognition test", async () => {
     },
     actions: {
       assign_result: assign(({ event }) => {
-        return { result: (event as any).value[0].utterance };
+        return {
+          result: (event as any).value[0].utterance,
+          nluResult: (event as any).nluValue,
+        };
       }),
       assign_result_null: assign({ result: null }),
       remove_result: assign({ result: undefined }),
@@ -22,6 +29,7 @@ describe("Recognition test", async () => {
     context: ({ spawn }) => {
       return {
         result: undefined,
+        nluResult: undefined,
         ssRef: spawn(speechstate, {
           input: {
             azureRegion: "northeurope",
@@ -30,6 +38,8 @@ describe("Recognition test", async () => {
                 "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
               key: AZURE_KEY,
             },
+            /** uncomment to test custom ASR */
+            // speechRecognitionEndpointId: CUSTOM_ASR_ENDPOINT_ID,
           },
         }),
       };
@@ -43,6 +53,12 @@ describe("Recognition test", async () => {
   const actor = createActor(testMachine).start();
   actor.getSnapshot().context.ssRef.send({ type: "PREPARE" });
   await waitForView(actor, "idle", 5000);
+  actor
+    .getSnapshot()
+    .context.ssRef.getSnapshot()
+    .context.asrRef.subscribe((snapshot) =>
+      console.debug("[test.ASR state]", snapshot.value),
+    );
 
   /** That's how much we need to wait between ASR attempts  */
   beforeEach(async () => {
@@ -105,6 +121,30 @@ describe("Recognition test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  test("get some result with hint", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "Say Talkamatic" },
+    });
+    await waitForView(actor, "speaking", 1_000);
+    await waitForView(actor, "idle", 10_000);
+    actor.getSnapshot().context.ssRef.send({
+      type: "LISTEN",
+      value: { hints: ["Talkamatic", "Talkamatic"] },
+    });
+    await waitForView(actor, "idle", 10_000);
+    const snapshot = await waitFor(
+      actor,
+      (snapshot) => {
+        return !!snapshot.context.result;
+      },
+      {
+        timeout: 5_000,
+      },
+    );
+    expect(snapshot).toBeTruthy();
+  });
+
   test("get some result with longer interspeech timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -143,6 +183,57 @@ describe("Recognition test", async () => {
       actor,
       (snapshot) => {
         return snapshot.context.result === null;
+      },
+      {
+        timeout: 10_000,
+      },
+    );
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("recognise after pause", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "Say one two three four" },
+    });
+    await waitForView(actor, "speaking", 1_000);
+    await waitForView(actor, "idle", 10_000);
+    actor.getSnapshot().context.ssRef.send({
+      type: "LISTEN",
+    });
+    await pause(500);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "recognising-paused", 3000);
+    await pause(500);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "idle", 10_000);
+    const snapshot = await waitFor(
+      actor,
+      (snapshot) => {
+        return !!snapshot.context.result;
+      },
+      {
+        timeout: 5_000,
+      },
+    );
+    expect(snapshot).toBeTruthy();
+  });
+
+  test.only("test NLU", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "Tea or coffee?" },
+    });
+    await waitForView(actor, "speaking", 10_000);
+    await waitForView(actor, "idle", 10_000);
+    actor.getSnapshot().context.ssRef.send({
+      type: "LISTEN",
+      value: { locale: "en-GB", nlu: AZURE_LANGUAGE_CREDENTIALS },
+    });
+    const snapshot = await waitFor(
+      actor,
+      (snapshot) => {
+        return !!snapshot.context.nluResult;
       },
       {
         timeout: 10_000,
