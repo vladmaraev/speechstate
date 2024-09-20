@@ -22,3 +22,10 @@ export function waitForView(
     },
   );
 }
+
+export const pause = (t: number) =>
+  new Promise((resolve) =>
+    setTimeout(() => {
+      resolve("ok");
+    }, t),
+  );

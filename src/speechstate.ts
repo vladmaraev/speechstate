@@ -277,6 +277,7 @@ const speechstate = setup({
                     Paused: {
                       meta: { view: "speaking-paused" },
                       on: {
+                        SPEAK_COMPLETE: {},
                         CONTROL: {
                           target: "Proceed",
                           actions: [

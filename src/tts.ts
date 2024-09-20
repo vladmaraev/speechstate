@@ -127,6 +127,7 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
+      console.debug("[TTS.start] with input", input);
       if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
@@ -430,6 +431,7 @@ export const ttsMachine = setup({
                     },
                     Paused: {
                       on: {
+                        SPEAK_COMPLETE: {},
                         CONTROL: "Go",
                       },
                     },
@@ -483,6 +485,7 @@ export const ttsMachine = setup({
             },
             Paused: {
               on: {
+                SPEAK_COMPLETE: {},
                 CONTROL: "Go",
               },
             },
