@@ -7,13 +7,14 @@ import {
   Settings,
 } from "./types";
 import { createBrowserInspector } from "@statelyai/inspect";
+import { AZURE_KEY } from "./credentials";
 
 const inspector = createBrowserInspector();
 
 const azureSpeechCredentials: AzureSpeechCredentials = {
   endpoint:
-    "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
-  key: "",
+    "https://swedencentral.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
+  key: AZURE_KEY,
 };
 
 const azureLanguageCredentials: AzureLanguageCredentials = {
@@ -26,11 +27,11 @@ const azureLanguageCredentials: AzureLanguageCredentials = {
 
 const settings: Settings = {
   azureCredentials: azureSpeechCredentials,
-  azureRegion: "northeurope",
+  azureRegion: "swedencentral",
   azureLanguageCredentials: azureLanguageCredentials,
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
-  locale: "en-US",
+  locale: "sv-SE",
   ttsDefaultVoice: "en-US-DavisNeural",
   // speechRecognitionEndpointId: "",
 };

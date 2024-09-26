@@ -123,6 +123,7 @@ export const ttsMachine = setup({
         const content = wrapSSML(
           (input as any).utterance,
           (input as any).voice,
+          (input as any).locale,
           (input as any).ttsLexicon,
           1,
         ); // todo speech rate;
@@ -163,6 +164,7 @@ export const ttsMachine = setup({
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
     azureRegion: input.azureRegion,
+    locale: input.locale || "en-US",
     buffer: "",
   }),
   initial: "GetToken",
@@ -397,6 +399,7 @@ export const ttsMachine = setup({
                             context.currentVoice ||
                             context.agenda.voice ||
                             context.ttsDefaultVoice,
+                          locale: context.locale,
                           utterance: context.utteranceFromStream,
                         }),
                       },
@@ -441,6 +444,7 @@ export const ttsMachine = setup({
                   ttsLexicon: context.ttsLexicon,
                   voice: context.agenda.voice || context.ttsDefaultVoice,
                   // streamURL: context.agenda.streamURL,
+                  locale: context.locale,
                   utterance: context.agenda.utterance,
                 }),
               },
@@ -500,16 +504,18 @@ export const ttsMachine = setup({
 const wrapSSML = (
   text: string,
   voice: string,
+  locale: string,
   lexicon: string,
   speechRate: number,
 ): string => {
-  let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}">`;
+  let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}"><lang xml:lang="${locale}">`;
   if (lexicon) {
     content = content + `<lexicon uri="${lexicon}"/>`;
   }
   content =
     content +
     `<prosody rate="${speechRate}">` +
-    `${text}</prosody></voice></speak>`;
+    `${text}</prosody></lang></voice></speak>`;
+  console.debug(content);
   return content;
 };
