@@ -40,6 +40,7 @@ const speechstate = setup({
             audioContext: context.audioContext,
             azureCredentials: context.settings.azureCredentials,
             azureRegion: context.settings.azureRegion,
+            locale: context.settings.locale,
           },
         });
       },
