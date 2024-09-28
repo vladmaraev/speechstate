@@ -151,12 +151,18 @@ export const ttsMachine = setup({
         if (input.visemes) {
           utterance.onviseme = (event: SpeechSynthesisEventProps) => {
             const name = event.name;
-            const fromStart = event.elapsedTime / 1e6;
+            const fromStart = event.elapsedTime / 1e7;
             sendBack({
               type: "VISEME",
-              value: { name: name, frames: [visemeStart, fromStart] },
+              value: {
+                name: name,
+                frames: [0, fromStart - visemeStart],
+                elapsedTime: event.elapsedTime,
+                animation: event.animation,
+              },
             });
-            visemeStart = event.elapsedTime / 1e6;
+
+            visemeStart = event.elapsedTime / 1e7;
           };
         }
         input.wsaTTS.speak(utterance);

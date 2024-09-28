@@ -220,10 +220,17 @@ const speechstate = setup({
                       actions: [
                         ({ event }) =>
                           console.debug("[TTS→SpSt] VISEME", event.value),
-                        sendParent(({ event }) => ({
-                          type: "VISEME",
-                          value: event.value,
-                        })),
+                        sendParent(
+                          ({ event }) => ({
+                            type: "VISEME",
+                            value: event.value,
+                          }),
+                          {
+                            // if needed, can be adjusted to send events a bit earlier
+                            delay: ({ event }) =>
+                              (event.value.elapsedTime - 500000) / 1e4,
+                          },
+                        ),
                       ],
                     },
                     SPEAK_COMPLETE: {

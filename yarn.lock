@@ -2639,9 +2639,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vladmaraev/web-speech-cognitive-services-davi@npm:^2.0.12":
-  version: 2.0.12
-  resolution: "@vladmaraev/web-speech-cognitive-services-davi@npm:2.0.12"
+"@vladmaraev/web-speech-cognitive-services-davi@npm:^2.0.16":
+  version: 2.0.16
+  resolution: "@vladmaraev/web-speech-cognitive-services-davi@npm:2.0.16"
   dependencies:
     base64-arraybuffer: 1.0.2
     memoize-one: 6.0.0
@@ -2650,7 +2650,7 @@ __metadata:
     p-defer: 4.0.0
     p-defer-es5: 2.0.1
     simple-update-in: 2.2.0
-  checksum: 0b82f9c407b5912239e70e2260106e9aaea2cd0444307d9766e200d0df4eb16afcd660acfc2e3f4d51224470a898e104e555aac1bd1420cf8edb11f42c78160a
+  checksum: 3a6cdc86864ccd893a2594d0ee0cd445ad0446642931a23185c478b0f2e0c86420fb6f684f06d3b8bb9e98a823bb034a42fc80533a1e1fa040b9a49f08294ac6
   languageName: node
   linkType: hard
 
@@ -8058,7 +8058,7 @@ __metadata:
     "@types/jest": ^29.5.2
     "@types/webspeechapi": ^0.0.29
     "@vitest/browser": ^2.0.5
-    "@vladmaraev/web-speech-cognitive-services-davi": ^2.0.12
+    "@vladmaraev/web-speech-cognitive-services-davi": ^2.0.16
     buffer: ^5.5.0||^6.0.0
     cors: ^2.8.5
     express: ^4.19.2
