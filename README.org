@@ -1,5 +1,9 @@
 #+STARTUP: inlineimages
 #+TITLE: SpeechState
+[[https://www.npmjs.com/package/speechstate][file:https://badge.fury.io/js/speechstate.svg]]
+
+
+Free browser-based spoken dialogue system. Based on [[https://github.com/statelyai/xstate][XState]]. 
 
 * SDK
 
