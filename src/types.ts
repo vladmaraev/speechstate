@@ -1,3 +1,5 @@
+import { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
+
 export interface AzureSpeechCredentials {
   endpoint: string;
   key: string;
@@ -177,4 +179,8 @@ export type TTSEvent =
   | { type: "STREAMING_SET_PERSONA"; value: string }
   | { type: "STREAMING_DONE" }
   | { type: "SPEAK_COMPLETE" }
-  | { type: "VISEME"; value: any };
+  | { type: "VISEME"; value: SpeechSynthesisEventProps }
+  | { type: "FURHAT_BLENDSHAPES"; value: Frame[] };
+
+export type Frame = { time: number[]; params: any };
+export type Animation = { FrameIndex: number; BlendShapes: number[][] };

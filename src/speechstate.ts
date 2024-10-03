@@ -1,6 +1,14 @@
-import { setup, assign, fromPromise, sendParent, stopChild } from "xstate";
+import {
+  setup,
+  assign,
+  fromPromise,
+  sendParent,
+  stopChild,
+  sendTo,
+} from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
+import { visemesMachine } from "./visemes";
 
 import type {
   Settings,
@@ -35,6 +43,7 @@ const speechstate = setup({
     }),
     tts: ttsMachine,
     asr: asrMachine,
+    visemes: visemesMachine,
   },
   actions: {
     spawnTTS: assign({
@@ -204,6 +213,11 @@ const speechstate = setup({
                   },
                 },
                 Speaking: {
+                  invoke: {
+                    id: "visemes",
+                    src: "visemes",
+                    input: {},
+                  },
                   initial: "Start",
                   on: {
                     STOP: {
@@ -218,19 +232,25 @@ const speechstate = setup({
                     },
                     VISEME: {
                       actions: [
+                        // ({ event }) =>
+                        //   console.debug("[TTS→SpSt] VISEME", event.value),
+                        sendTo("visemes", ({ event }) => ({
+                          type: "VISEME",
+                          value: event.value,
+                        })),
+                      ],
+                    },
+                    FURHAT_BLENDSHAPES: {
+                      actions: [
                         ({ event }) =>
-                          console.debug("[TTS→SpSt] VISEME", event.value),
-                        sendParent(
-                          ({ event }) => ({
-                            type: "VISEME",
-                            value: event.value,
-                          }),
-                          {
-                            // if needed, can be adjusted to send events a bit earlier
-                            delay: ({ event }) =>
-                              (event.value.elapsedTime - 500000) / 1e4,
-                          },
-                        ),
+                          console.debug(
+                            "[SpSt] FURHAT_BLENDSHAPES",
+                            event.value,
+                          ),
+                        sendParent(({ event }) => ({
+                          type: "FURHAT_BLENDSHAPES",
+                          value: (event as any).value,
+                        })),
                       ],
                     },
                     SPEAK_COMPLETE: {
