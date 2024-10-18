@@ -122,6 +122,7 @@ export const ttsMachine = setup({
         utterance: string;
         voice: string;
         ttsLexicon: string;
+        locale: string;
         wsaUtt: ConstructableSpeechSynthesisUtterance;
         wsaTTS: SpeechSynthesis;
         visemes?: boolean;
@@ -138,7 +139,7 @@ export const ttsMachine = setup({
           input.voice,
           input.locale,
           input.ttsLexicon,
-          1
+          1,
         ); // todo speech rate;
         const utterance = new input.wsaUtt(content);
         utterance.onsynthesisstart = () => {
@@ -532,7 +533,6 @@ export const ttsMachine = setup({
     },
   },
 });
-
 
 const wrapSSML = (
   text: string,
