@@ -141,6 +141,7 @@ export interface TTSInit {
   azureRegion: string;
   ttsDefaultVoice: string;
   ttsLexicon?: string;
+  locale: string;
 }
 
 export interface TTSContext extends TTSInit {

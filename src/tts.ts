@@ -136,8 +136,10 @@ export const ttsMachine = setup({
         const content = wrapSSML(
           input.utterance,
           input.voice,
+          input.locale,
           input.ttsLexicon,
-        );
+          1
+        ); // todo speech rate;
         const utterance = new input.wsaUtt(content);
         utterance.onsynthesisstart = () => {
           sendBack({ type: "TTS_STARTED" });
@@ -182,6 +184,7 @@ export const ttsMachine = setup({
     audioContext: input.audioContext,
     azureCredentials: input.azureCredentials,
     azureRegion: input.azureRegion,
+    locale: input.locale || "en-US",
     buffer: "",
   }),
   initial: "GetToken",
@@ -417,6 +420,7 @@ export const ttsMachine = setup({
                             context.currentVoice ||
                             context.agenda.voice ||
                             context.ttsDefaultVoice,
+                          locale: context.locale,
                           utterance: context.utteranceFromStream,
                         }),
                       },
@@ -471,6 +475,7 @@ export const ttsMachine = setup({
                   voice: context.agenda.voice || context.ttsDefaultVoice,
                   visemes: context.agenda.visemes,
                   // streamURL: context.agenda.streamURL,
+                  locale: context.locale,
                   utterance: context.agenda.utterance,
                 }),
               },
@@ -528,9 +533,21 @@ export const ttsMachine = setup({
   },
 });
 
-const wrapSSML = (text: string, voice: string, lexicon: string): string => {
-  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"  xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
-  <voice name="${voice}">
-  ${lexicon ? `<lexicon uri="${lexicon}"/>` : ""}
-  ${text}\n    </voice>\n</speak>\n`;
+
+const wrapSSML = (
+  text: string,
+  voice: string,
+  locale: string,
+  lexicon: string,
+  speechRate: number,
+): string => {
+  let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}"><lang xml:lang="${locale}">`;
+  if (lexicon) {
+    content = content + `<lexicon uri="${lexicon}"/>`;
+  }
+  content =
+    content +
+    `<prosody rate="${speechRate}">` +
+    `${text}</prosody></lang></voice></speak>`;
+  return content;
 };
