@@ -13,11 +13,13 @@ import {
   TTSEvent,
   TTSContext,
   TTSPonyfillInput,
+  ConstructableSpeechSynthesisUtterance,
 } from "./types";
 
 import { getToken } from "./getToken";
 
-import createSpeechSynthesisPonyfill from "web-speech-cognitive-services/lib/SpeechServices/TextToSpeech";
+import createSpeechSynthesisPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
+import type { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -100,7 +102,7 @@ export const ttsMachine = setup({
       const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
       const tts = speechSynthesis;
       const ttsUtterance = SpeechSynthesisUtterance;
-      tts.addEventListener("voiceschanged", () => {
+      tts.onvoiceschanged = () => {
         const voices = tts.getVoices();
         if (voices.length > 0) {
           console.debug("[TTS] READY");
@@ -112,32 +114,51 @@ export const ttsMachine = setup({
           console.error("[TTS] No voices available");
           sendBack({ type: "ERROR" });
         }
-      });
+      };
     }),
-    start: fromCallback(({ sendBack, input }) => {
-      if (["", " "].includes((input as any).utterance)) {
+    start: fromCallback<
+      null,
+      {
+        utterance: string;
+        voice: string;
+        ttsLexicon: string;
+        locale: string;
+        wsaUtt: ConstructableSpeechSynthesisUtterance;
+        wsaTTS: SpeechSynthesis;
+        visemes?: boolean;
+      }
+    >(({ sendBack, input }) => {
+      console.debug("[TTS.start] with input", input);
+      if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        console.debug("[TTS] SPEAK: ", (input as any).utterance);
+        console.debug("[TTS] SPEAK: ", input.utterance);
         const content = wrapSSML(
-          (input as any).utterance,
-          (input as any).voice,
-          (input as any).locale,
-          (input as any).ttsLexicon,
+          input.utterance,
+          input.voice,
+          input.locale,
+          input.ttsLexicon,
           1,
         ); // todo speech rate;
-        const utterance = new (input as any).wsaUtt!(content);
-        utterance.addEventListener("start", () => {
+        const utterance = new input.wsaUtt(content);
+        utterance.onsynthesisstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
-        });
-        utterance.addEventListener("end", () => {
+        };
+        utterance.onend = () => {
           sendBack({ type: "SPEAK_COMPLETE" });
           console.debug("[TTS] SPEAK_COMPLETE");
-        });
-
-        (input as any).wsaTTS.speak(utterance);
+        };
+        if (input.visemes) {
+          utterance.onviseme = (event: SpeechSynthesisEventProps) => {
+            sendBack({
+              type: "VISEME",
+              value: event,
+            });
+          };
+        }
+        input.wsaTTS.speak(utterance);
       }
     }),
   },
@@ -395,6 +416,7 @@ export const ttsMachine = setup({
                           wsaTTS: context.wsaTTS,
                           wsaUtt: context.wsaUtt,
                           ttsLexicon: context.ttsLexicon,
+                          visemes: context.agenda.visemes,
                           voice:
                             context.currentVoice ||
                             context.agenda.voice ||
@@ -410,6 +432,7 @@ export const ttsMachine = setup({
                     },
                     Paused: {
                       on: {
+                        SPEAK_COMPLETE: {},
                         CONTROL: "Go",
                       },
                     },
@@ -429,6 +452,14 @@ export const ttsMachine = setup({
             TTS_STARTED: {
               actions: sendParent({ type: "TTS_STARTED" }),
             },
+            VISEME: {
+              actions: sendParent(
+                ({ event }: { event: { type: "VISEME"; value: any } }) => ({
+                  type: "VISEME",
+                  value: event.value,
+                }),
+              ),
+            },
             SPEAK_COMPLETE: {
               target: "Idle",
             },
@@ -443,6 +474,7 @@ export const ttsMachine = setup({
                   wsaUtt: context.wsaUtt,
                   ttsLexicon: context.ttsLexicon,
                   voice: context.agenda.voice || context.ttsDefaultVoice,
+                  visemes: context.agenda.visemes,
                   // streamURL: context.agenda.streamURL,
                   locale: context.locale,
                   utterance: context.agenda.utterance,
@@ -455,6 +487,7 @@ export const ttsMachine = setup({
             },
             Paused: {
               on: {
+                SPEAK_COMPLETE: {},
                 CONTROL: "Go",
               },
             },
@@ -516,6 +549,5 @@ const wrapSSML = (
     content +
     `<prosody rate="${speechRate}">` +
     `${text}</prosody></lang></voice></speak>`;
-  console.debug(content);
   return content;
 };

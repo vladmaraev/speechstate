@@ -5,7 +5,6 @@ export default defineConfig({
     browser: {
       enabled: true,
       name: "firefox",
-      headless: true,
       provider: "webdriverio",
       providerOptions: {},
     },
