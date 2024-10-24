@@ -6,6 +6,7 @@ import {
   fromPromise,
   raise,
   cancel,
+  sendTo,
 } from "xstate";
 
 import {
@@ -19,7 +20,7 @@ import {
 
 import { getToken } from "./getToken";
 
-import createSpeechRecognitionPonyfill from "web-speech-cognitive-services/lib/SpeechServices/SpeechToText";
+import createSpeechRecognitionPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
 
 export const asrMachine = setup({
   types: {
@@ -27,52 +28,68 @@ export const asrMachine = setup({
     events: {} as ASREvent,
     input: {} as ASRInit,
   },
+  delays: {
+    noinputTimeout: ({ context }) =>
+      (context.params || {}).noInputTimeout || context.asrDefaultNoInputTimeout,
+  },
   actions: {
-    recStop: ({ context }) => {
-      context.wsaASRinstance.abort();
-      console.debug("[ASR] stopped");
+    raise_noinput_after_timeout: raise(
+      { type: "NOINPUT" },
+      {
+        delay: "noinputTimeout",
+        id: "timeout",
+      },
+    ),
+    cancel_noinput_timeout: cancel("timeout"),
+  },
+  guards: {
+    nlu_is_activated: ({ context }) => {
+      const nlu = (context.params || {}).nlu;
+      if (nlu) {
+        if (typeof nlu === "object") {
+          return true;
+        } else if (context.azureLanguageCredentials) {
+          return true;
+        }
+      }
+      return false;
     },
   },
   actors: {
     getToken: getToken,
-    ponyfill: fromCallback<null, ASRPonyfillInput>(({ sendBack, input }) => {
-      const { SpeechGrammarList, SpeechRecognition } =
-        createSpeechRecognitionPonyfill({
-          audioContext: input.audioContext,
-          speechRecognitionEndpointId: input.speechRecognitionEndpointId,
-          credentials: {
-            region: input.azureRegion,
-            authorizationToken: input.azureAuthorizationToken,
-          },
-        });
-      sendBack({
-        type: "READY",
-        value: {
-          wsaASR: SpeechRecognition,
-          wsaGrammarList: SpeechGrammarList,
-        },
-      });
-      console.debug("[ASR] READY", input);
-    }),
-    recStart: fromCallback(
-      ({ sendBack, input }: { sendBack: any; input: any }) => {
-        let asr = new input.wsaASR!();
-        asr.grammars = new input.wsaGrammarList!();
-        asr.grammars.phrases = input.phrases || [];
-        asr.lang = input.locale;
-        asr.continuous = true;
-        asr.interimResults = true;
+    new_ponyfill: fromCallback<null, ASRPonyfillInput>(
+      ({ sendBack, input, receive }) => {
+        const { SpeechGrammarList, speechRecognition } =
+          createSpeechRecognitionPonyfill(
+            {
+              audioContext: input.audioContext,
+              speechRecognitionEndpointId: input.speechRecognitionEndpointId,
+              credentials: {
+                region: input.azureRegion,
+                authorizationToken: input.azureAuthorizationToken,
+              },
+            },
+            {
+              passive: false,
+              interimResults: true,
+              continuous: true,
+              lang: input.locale || "en-US",
+              grammarsList: input.hints,
+              autoStart: true,
+              timerBeforeSpeechEnd: input.completeTimeout,
+              // debug: true,
+            },
+          );
+        let asr: SpeechRecognition = speechRecognition;
         asr.onresult = function (event: any) {
-          if (event.results[event.results.length - 1].isFinal) {
-            const transcript = event.results
-              .map((x: SpeechRecognitionResult) =>
-                x[0].transcript.replace(/\.$/, ""),
-              )
+          if (event.isFinal) {
+            const transcript = event
+              .map((x) => x.transcript.replace(/\.$/, ""))
               .join(" ");
             const confidence =
-              event.results
-                .map((x: SpeechRecognitionResult) => x[0].confidence)
-                .reduce((a: number, b: number) => a + b) / event.results.length;
+              event
+                .map((x) => x.confidence)
+                .reduce((a: number, b: number) => a + b) / event.length;
             const res: Hypothesis[] = [
               {
                 utterance: transcript,
@@ -80,59 +97,70 @@ export const asrMachine = setup({
               },
             ];
             sendBack({
-              type: "RESULT",
+              type: "RECOGNISED",
               value: res,
             });
-            console.debug("[ASR] RESULT (pre-final)", res);
           } else {
             sendBack({ type: "STARTSPEECH" });
           }
         };
-        asr.addEventListener("start", () => {
-          sendBack({ type: "STARTED", value: { wsaASRinstance: asr } });
+        asr.onstart = function () {
+          sendBack({ type: "STARTED" });
+        };
+        asr.onend = function () {
+          sendBack({ type: "LISTEN_COMPLETE" });
+        };
+        // any: it works, but gives unexpected type error
+        (asr as any).onabort = function () {
+          sendBack({ type: "LISTEN_COMPLETE" });
+        };
+        console.debug("[ASR] READY", asr);
+        sendBack({ type: "READY", value: asr });
+        receive((event: { type: "START" | "STOP" }) => {
+          if (event.type === "START") {
+            console.log("[asr.callback] Receiving START");
+            asr.start();
+          }
+          if (event.type === "STOP") {
+            console.log("[asr.callback] Receiving STOP");
+            asr.abort();
+          }
         });
-
-        // receive((event) => {
-        //   console.debug("bla");
-        //   if (event.type === "STOP") {
-        //     asr.abort();
-        //   }
-        // });
-        asr.start();
       },
     ),
-    nluPromise: fromPromise<any, AzureLanguageCredentials & { query: string }>(
-      async ({ input }) => {
-        const response = await fetch(
-          new Request(input.endpoint, {
-            method: "POST",
-            headers: {
-              "Ocp-Apim-Subscription-Key": input.key,
-              "Content-Type": "application/json",
+    nluPromise: fromPromise<
+      any,
+      AzureLanguageCredentials & { query: string; locale: string }
+    >(async ({ input }) => {
+      const response = await fetch(
+        new Request(input.endpoint, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": input.key,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            kind: "Conversation",
+            analysisInput: {
+              conversationItem: {
+                id: "PARTICIPANT_ID_HERE",
+                text: input.query,
+                modality: "text",
+                language: input.locale,
+                participantId: "PARTICIPANT_ID_HERE",
+              },
             },
-            body: JSON.stringify({
-              kind: "Conversation",
-              analysisInput: {
-                conversationItem: {
-                  id: "PARTICIPANT_ID_HERE",
-                  text: input.query,
-                  modality: "text",
-                  language: "en-US", // TODO
-                  participantId: "PARTICIPANT_ID_HERE",
-                },
-              },
-              parameters: {
-                projectName: input.projectName,
-                verbose: true,
-                deploymentName: input.deploymentName,
-                stringIndexType: "TextElement_V8",
-              },
-            }),
+            parameters: {
+              projectName: input.projectName,
+              verbose: true,
+              deploymentName: input.deploymentName,
+              stringIndexType: "TextElement_V8",
+            },
           }),
-        );
-        return response.json();
-      },
-    ),
+        }),
+      );
+      return response.json();
+    }),
   },
 }).createMachine({
   id: "asr",
@@ -146,213 +174,9 @@ export const asrMachine = setup({
     azureLanguageCredentials: input.azureLanguageCredentials,
     speechRecognitionEndpointId: input.speechRecognitionEndpointId,
   }),
-
   initial: "GetToken",
-  on: {
-    READY: {
-      target: ".Ready",
-      actions: [
-        assign({
-          wsaASR: ({ event }) => event.value.wsaASR,
-          wsaGrammarList: ({ event }) => event.value.wsaGrammarList,
-        }),
-        sendParent({ type: "ASR_READY" }),
-      ],
-    },
-  },
   states: {
     Fail: {},
-    Ready: {
-      on: {
-        START: {
-          target: "Recognising",
-          actions: assign({ params: ({ event }) => event.value || {} }),
-        },
-      },
-    },
-    Recognising: {
-      initial: "WaitForRecogniser",
-      invoke: {
-        id: "recStart",
-        input: ({ context }) => ({
-          wsaASR: context.wsaASR,
-          wsaGrammarList: context.wsaGrammarList,
-          locale: context.locale,
-          phrases: (context.params || {}).hints || [],
-        }),
-        src: "recStart",
-      },
-      exit: "recStop",
-      on: {
-        RESULT: {
-          actions: [
-            assign({
-              result: ({ event }) => event.value,
-            }),
-            cancel("completeTimeout"),
-          ],
-          target: ".Match",
-        },
-        RECOGNISED: [
-          {
-            target: ".NLURequest",
-            guard: ({ context }) =>
-              !!(context.params.nlu && context.azureLanguageCredentials),
-          },
-          {
-            target: "Ready",
-            actions: [
-              sendParent(({ context }) => ({
-                type: "RECOGNISED",
-                value: context.result,
-              })),
-            ],
-          },
-        ],
-        CONTROL: {
-          target: "Paused",
-        },
-        STOP: {
-          target: "Ready",
-        },
-        NOINPUT: {
-          actions: sendParent({ type: "ASR_NOINPUT" }),
-          target: "Ready",
-        },
-      },
-      states: {
-        WaitForRecogniser: {
-          on: {
-            STARTED: {
-              target: "NoInput",
-              actions: [
-                assign({
-                  wsaASRinstance: ({ event }) => event.value.wsaASRinstance,
-                }),
-                sendParent({ type: "ASR_STARTED" }),
-              ],
-            },
-          },
-        },
-        NoInput: {
-          entry: [
-            raise(
-              { type: "NOINPUT" },
-              {
-                delay: ({ context }) =>
-                  (context.params || {}).noInputTimeout ||
-                  context.asrDefaultNoInputTimeout,
-                id: "timeout",
-              },
-            ),
-          ],
-          on: {
-            STARTSPEECH: {
-              target: "InProgress",
-              actions: cancel("completeTimeout"),
-            },
-          },
-          exit: [cancel("timeout")],
-        },
-        InProgress: {
-          entry: () => console.debug("[ASR] in progress"),
-        },
-        Match: {
-          entry: [
-            ({ context }) =>
-              console.debug(
-                "RECOGNISED will be sent in (ms)",
-                (context.params || {}).completeTimeout ||
-                  context.asrDefaultCompleteTimeout,
-              ),
-            raise(
-              { type: "RECOGNISED" },
-              {
-                delay: ({ context }) =>
-                  (context.params || {}).completeTimeout ||
-                  context.asrDefaultCompleteTimeout,
-                id: "completeTimeout",
-              },
-            ),
-          ],
-        },
-        NLURequest: {
-          invoke: {
-            src: "nluPromise",
-            input: ({ context }) => {
-              let c: AzureLanguageCredentials;
-              typeof context.params.nlu === "boolean"
-                ? (c = context.azureLanguageCredentials)
-                : (c = context.params.nlu);
-              return {
-                endpoint: c.endpoint,
-                key: c.key,
-                projectName: c.projectName,
-                deploymentName: c.deploymentName,
-                query: context.result[0].utterance,
-              };
-            },
-            onDone: [
-              {
-                actions: [
-                  ({ event }) =>
-                    console.error("[ASR] no NLU prediction", event.output),
-                  sendParent(({ context }) => ({
-                    type: "RECOGNISED",
-                    value: context.result,
-                  })),
-                ],
-                target: "#asr.Ready",
-                guard: ({ event }) => !(event.output.result || {}).prediction,
-              },
-              {
-                actions: [
-                  ({ event }) =>
-                    console.debug(
-                      "[ASR] NLU result",
-                      event.output.result.prediction,
-                    ),
-                  sendParent(({ context, event }) => ({
-                    type: "RECOGNISED",
-                    value: context.result,
-                    nluValue: event.output.result.prediction,
-                  })),
-                ],
-                target: "#asr.Ready",
-              },
-            ],
-            onError: {
-              actions: [
-                ({ event }) => console.error("[ASR]", event.error),
-                sendParent(({ context }) => ({
-                  type: "RECOGNISED",
-                  value: context.result,
-                })),
-              ],
-              target: "#asr.Ready",
-            },
-          },
-        },
-      },
-    },
-    Paused: {
-      entry: sendParent({ type: "ASR_PAUSED" }),
-      on: {
-        CONTROL: {
-          target: "Recognising",
-          //       ///// todo? reset noInputTimeout
-          //       // actions: assign({
-          //       //   params: {
-          //       //     noInputTimeout: ({ context }) =>
-          //       //       context.asrDefaultNoInputTimeout,
-          //       //     completeTimeout: 0,
-          //       //     locale: "0",
-          //       //     hints: [""],
-          //       //   },
-          //       // }),} },
-        },
-      },
-    },
     GetToken: {
       invoke: {
         id: "getAuthorizationToken",
@@ -361,7 +185,7 @@ export const asrMachine = setup({
         }),
         src: "getToken",
         onDone: {
-          target: "Ponyfill",
+          target: "Ready",
           actions: [
             assign(({ event }) => {
               return { azureAuthorizationToken: event.output };
@@ -374,17 +198,190 @@ export const asrMachine = setup({
         },
       },
     },
-    Ponyfill: {
+    Ready: {
+      entry: sendParent({ type: "ASR_READY" }),
+      on: {
+        START: {
+          target: "Recognising",
+          actions: assign(({ event }) => ({
+            params: event.value,
+          })),
+        },
+      },
+    },
+    Recognising: {
+      onDone: "Ready",
       invoke: {
-        id: "ponyASR",
-        src: "ponyfill",
+        id: "asr",
+        src: "new_ponyfill",
         input: ({ context }) => ({
           azureRegion: context.azureRegion,
           audioContext: context.audioContext,
           azureAuthorizationToken: context.azureAuthorizationToken,
-          locale: context.locale,
+          locale: (context.params || {}).locale || context.locale,
           speechRecognitionEndpointId: context.speechRecognitionEndpointId,
+          completeTimeout:
+            (context.params || {}).completeTimeout ||
+            context.asrDefaultCompleteTimeout,
+          hints: (context.params || {}).hints,
         }),
+      },
+      on: {
+        STOP: {
+          target: ".WaitToStop",
+        },
+        CONTROL: {
+          target: ".Pausing",
+        },
+        NOINPUT: {
+          actions: sendParent({ type: "ASR_NOINPUT" }),
+          target: ".WaitToStop",
+        },
+      },
+      initial: "WaitForRecogniser",
+      states: {
+        WaitForRecogniser: {
+          on: {
+            STARTED: {
+              target: "NoInput",
+              actions: [
+                () => console.debug("[ASR] STARTED"),
+                sendParent({ type: "ASR_STARTED" }),
+              ],
+            },
+          },
+        },
+        NoInput: {
+          entry: { type: "raise_noinput_after_timeout" },
+          on: {
+            STARTSPEECH: {
+              target: "InProgress",
+              actions: cancel("completeTimeout"),
+            },
+          },
+          exit: { type: "cancel_noinput_timeout" },
+        },
+        InProgress: {
+          entry: () => console.debug("[ASR] in progress"),
+          on: {
+            RECOGNISED: [
+              {
+                target: "#asr.NLURequest",
+                guard: { type: "nlu_is_activated" },
+                actions: assign({
+                  result: ({ event }) => event.value,
+                }),
+              },
+              {
+                target: "WaitToStop",
+                actions: [
+                  assign({
+                    result: ({ event }) => event.value,
+                  }),
+                  sendParent(({ context }) => ({
+                    type: "RECOGNISED",
+                    value: context.result,
+                  })),
+                ],
+              },
+            ],
+          },
+        },
+        WaitToStop: {
+          entry: sendTo("asr", { type: "STOP" }),
+          on: {
+            LISTEN_COMPLETE: {
+              actions: sendParent({ type: "LISTEN_COMPLETE" }),
+              target: "Stopped",
+            },
+          },
+        },
+        Pausing: {
+          onDone: "#asr.Recognising",
+          initial: "WaitToPause",
+          states: {
+            WaitToPause: {
+              entry: sendTo("asr", { type: "STOP" }),
+              on: {
+                LISTEN_COMPLETE: {
+                  target: "Paused",
+                },
+              },
+            },
+            Paused: {
+              entry: sendParent({ type: "ASR_PAUSED" }),
+              on: {
+                CONTROL: {
+                  target: "Continue",
+                  //       ///// todo? reset noInputTimeout
+                },
+              },
+            },
+            Continue: { type: "final" },
+          },
+        },
+        Stopped: { type: "final" },
+      },
+    },
+    NLURequest: {
+      invoke: {
+        src: "nluPromise",
+        input: ({ context }) => {
+          let c: AzureLanguageCredentials;
+          typeof context.params.nlu === "boolean"
+            ? (c = context.azureLanguageCredentials)
+            : (c = context.params.nlu);
+          return {
+            endpoint: c.endpoint,
+            key: c.key,
+            projectName: c.projectName,
+            deploymentName: c.deploymentName,
+            query: context.result[0].utterance,
+            locale: (context.params || {}).locale || context.locale,
+          };
+        },
+        onDone: [
+          {
+            actions: [
+              ({ event }) =>
+                console.error("[ASR] no NLU prediction", event.output),
+              sendParent(({ context }) => ({
+                type: "RECOGNISED",
+                value: context.result,
+              })),
+              sendParent({ type: "LISTEN_COMPLETE" }),
+            ],
+            target: "Ready",
+            guard: ({ event }) => !(event.output.result || {}).prediction,
+          },
+          {
+            actions: [
+              ({ event }) =>
+                console.debug(
+                  "[ASR] NLU result",
+                  event.output.result.prediction,
+                ),
+              sendParent(({ context, event }) => ({
+                type: "RECOGNISED",
+                value: context.result,
+                nluValue: event.output.result.prediction,
+              })),
+              sendParent({ type: "LISTEN_COMPLETE" }),
+            ],
+            target: "Ready",
+          },
+        ],
+        onError: {
+          actions: [
+            ({ event }) => console.error("[ASR]", event.error),
+            sendParent(({ context }) => ({
+              type: "RECOGNISED",
+              value: context.result,
+            })),
+            sendParent({ type: "LISTEN_COMPLETE" }),
+          ],
+          target: "Ready",
+        },
       },
     },
   },
