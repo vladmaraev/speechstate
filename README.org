@@ -135,12 +135,14 @@ Example action:
   DM -> SS : LISTEN
   activate SS
   SS --> DM : ASR_STARTED
-  return RECOGNISED
+  SS --> DM : RECOGNISED
+  return LISTEN_COMPLETE
   DM -> SS : LISTEN
   activate SS
   SS --> DM : ASR_STARTED
   ... > noInputTimeout ...
-  return ASR_NOINPUT
+  SS --> DM : ASR_NOINPUT
+  return LISTEN_COMPLETE
 #+end_src
 
 #+RESULTS:
