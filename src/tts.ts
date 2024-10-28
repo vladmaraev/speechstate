@@ -5,6 +5,7 @@ import {
   fromCallback,
   stateIn,
   raise,
+  fromPromise,
 } from "xstate";
 
 import {
@@ -32,6 +33,9 @@ export const ttsMachine = setup({
   actions: {
     ttsStop: ({ context }) => {
       context.wsaTTS!.cancel();
+      if (context.audioBufferSourceNode) {
+        context.audioBufferSourceNode.stop();
+      }
     },
     addFiller: assign(({ context }) => {
       const spaceIndex = context.buffer.lastIndexOf(" ");
@@ -66,6 +70,33 @@ export const ttsMachine = setup({
   },
   actors: {
     getToken: getToken,
+    getAudio: fromPromise<any, any>(async ({ input }) => {
+      const response = await fetch(
+        "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/viper.mp3",
+      );
+      const audioCtx = input.audioContext;
+      let buffer = audioCtx.decodeAudioData(await response.arrayBuffer());
+      return buffer;
+    }),
+    playAudio: fromCallback(
+      ({
+        sendBack,
+        input,
+      }: {
+        sendBack: any;
+        input: { audioContext: AudioContext; audioBuffer: AudioBuffer };
+      }) => {
+        let source = input.audioContext.createBufferSource();
+        source.buffer = input.audioBuffer;
+        source.connect(input.audioContext.destination);
+        source.start();
+        sendBack({ type: "TTS_STARTED", value: source });
+        source.addEventListener("ended", (event) => {
+          sendBack({ type: "SPEAK_COMPLETE" });
+          console.debug("[TTS] SPEAK_COMPLETE (audio)");
+        });
+      },
+    ),
     createEventsFromStream: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
@@ -165,7 +196,6 @@ export const ttsMachine = setup({
   guards: {
     bufferContainsUtterancePartReadyToBeSpoken: ({ context }) => {
       const m = context.buffer.match(UTTERANCE_CHUNK_REGEX);
-
       return !!m;
     },
     bufferIsNonEmpty: ({ context }) => {
@@ -220,6 +250,11 @@ export const ttsMachine = setup({
                 }),
               },
               {
+                target: "Playing",
+                guard: ({ event }) => !!event.value.audioURL,
+                actions: assign({ agenda: ({ event }) => event.value }),
+              },
+              {
                 target: "Speaking",
                 actions: assign({ agenda: ({ event }) => event.value }),
               },
@@ -271,7 +306,6 @@ export const ttsMachine = setup({
                             event,
                           ),
                       ],
-
                       target: "Buffering",
                     },
                   },
@@ -318,7 +352,6 @@ export const ttsMachine = setup({
                     ({ event }) =>
                       console.debug("=== Entry BufferingDone", event),
                   ],
-
                   id: "BufferingDone",
                 },
               },
@@ -375,7 +408,6 @@ export const ttsMachine = setup({
                       restOfBuffer = context.buffer.substring(
                         utterancePart.length,
                       );
-
                       return {
                         buffer: restOfBuffer,
                         utteranceFromStream: utterancePart,
@@ -438,6 +470,54 @@ export const ttsMachine = setup({
                     },
                   },
                 },
+              },
+            },
+          },
+        },
+
+        Playing: {
+          exit: "ttsStop",
+          on: {
+            SPEAK_COMPLETE: {
+              target: "Idle",
+            },
+            TTS_STARTED: {
+              actions: [
+                sendParent({ type: "TTS_STARTED" }),
+                assign(({ event }) => {
+                  return { audioBufferSourceNode: event.value };
+                }),
+              ],
+            },
+
+            STOP: {
+              actions: () => console.log("STOP"),
+              target: "Idle",
+            },
+          },
+          initial: "FetchAudio",
+          states: {
+            FetchAudio: {
+              invoke: {
+                src: "getAudio",
+                input: ({ context }) => ({
+                  audioContext: context.audioContext,
+                }),
+                onDone: {
+                  target: "PlayAudio",
+                  actions: assign(({ event }) => {
+                    return { audioBuffer: event.output };
+                  }),
+                },
+              },
+            },
+            PlayAudio: {
+              invoke: {
+                src: "playAudio",
+                input: ({ context }) => ({
+                  audioContext: context.audioContext,
+                  audioBuffer: context.audioBuffer,
+                }),
               },
             },
           },

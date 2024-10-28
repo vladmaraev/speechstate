@@ -35,6 +35,7 @@ export interface Agenda {
   stream?: string;
   fillerDelay?: number;
   visemes?: boolean;
+  audioURL?: string;
 }
 
 export interface Hypothesis {
@@ -154,6 +155,8 @@ export interface TTSContext extends TTSInit {
   buffer?: string;
   currentVoice?: string;
   utteranceFromStream?: string;
+  audioBuffer?: AudioBuffer;
+  audioBufferSourceNode?: AudioBufferSourceNode;
 }
 
 export interface TTSPonyfillInput {
@@ -175,7 +178,7 @@ export type TTSEvent =
     }
   | { type: "ERROR" }
   | { type: "SPEAK"; value: Agenda }
-  | { type: "TTS_STARTED" }
+  | { type: "TTS_STARTED"; value?: AudioBufferSourceNode }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_SET_VOICE"; value: string }
   | { type: "STREAMING_SET_PERSONA"; value: string }
