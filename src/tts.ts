@@ -70,10 +70,11 @@ export const ttsMachine = setup({
   },
   actors: {
     getToken: getToken,
-    getAudio: fromPromise<any, any>(async ({ input }) => {
-      const response = await fetch(
-        "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/viper.mp3",
-      );
+    getAudio: fromPromise<
+      any,
+      { audioContext: AudioContext; audioURL: string }
+    >(async ({ input }) => {
+      const response = await fetch(input.audioURL);
       const audioCtx = input.audioContext;
       let buffer = audioCtx.decodeAudioData(await response.arrayBuffer());
       return buffer;
@@ -476,7 +477,6 @@ export const ttsMachine = setup({
         },
 
         Playing: {
-          exit: "ttsStop",
           on: {
             SPEAK_COMPLETE: {
               target: "Idle",
@@ -489,7 +489,6 @@ export const ttsMachine = setup({
                 }),
               ],
             },
-
             STOP: {
               actions: () => console.log("STOP"),
               target: "Idle",
@@ -502,12 +501,16 @@ export const ttsMachine = setup({
                 src: "getAudio",
                 input: ({ context }) => ({
                   audioContext: context.audioContext,
+                  audioURL: context.agenda.audioURL,
                 }),
                 onDone: {
                   target: "PlayAudio",
                   actions: assign(({ event }) => {
                     return { audioBuffer: event.output };
                   }),
+                },
+                onError: {
+                  target: "#tts.Ready.Speaking",
                 },
               },
             },
@@ -518,6 +521,15 @@ export const ttsMachine = setup({
                   audioContext: context.audioContext,
                   audioBuffer: context.audioBuffer,
                 }),
+              },
+              on: {
+                CONTROL: "AudioPaused",
+              },
+              exit: "ttsStop",
+            },
+            AudioPaused: {
+              on: {
+                CONTROL: "PlayAudio",
               },
             },
           },
