@@ -6,6 +6,8 @@ import {
   stateIn,
   raise,
   fromPromise,
+  and,
+  not,
 } from "xstate";
 
 import {
@@ -70,6 +72,49 @@ export const ttsMachine = setup({
   },
   actors: {
     getToken: getToken,
+    checkCache: fromPromise<
+      any,
+      { cacheURL: string; utterance: string; voice: string; locale: string }
+    >(async ({ input }) => {
+      const response = fetch(input.cacheURL + "check-tts", {
+        method: "POST",
+        body: JSON.stringify({
+          utterance: input.utterance,
+          voice: input.voice,
+          locale: input.locale,
+        }),
+      }).then((res) => res.json());
+      return response;
+    }),
+    getAudioFromCache: fromPromise<
+      any,
+      {
+        audioContext: AudioContext;
+        cacheURL: string;
+        utterance: string;
+        voice: string;
+        locale: string;
+      }
+    >(async ({ input }) => {
+      const audioCtx = input.audioContext;
+      const response = await fetch(input.cacheURL + "generate-tts", {
+        method: "POST",
+        body: JSON.stringify({
+          utterance: input.utterance,
+          voice: input.voice,
+          locale: input.locale.replace("-", "_"),
+        }),
+      })
+        .then((res) => res.json())
+        .then((json) => json.tts_data)
+        .then((data) => data.slice(2, -1))
+        .then(
+          (raw) => Uint8Array.from(atob(raw), (c) => c.charCodeAt(0)).buffer,
+        );
+      let buffer = await audioCtx.decodeAudioData(await response);
+      console.debug("[tts.getAudioFromCache] has received data");
+      return buffer;
+    }),
     getAudio: fromPromise<
       any,
       { audioContext: AudioContext; audioURL: string }
@@ -102,23 +147,17 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
-          console.debug("[TTS] received streaming done - closing event stream");
           sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
         });
-        eventSource.addEventListener("STREAMING_RESET", (_event) => {
-          console.debug("[TTS] received streaming reset");
-        });
+        eventSource.addEventListener("STREAMING_RESET", (_event) => {});
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
-          console.debug("[TTS] received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
-          console.debug("[TTS] received streaming voice set command:", event);
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
-          console.debug("[TTS] received streaming persona set command:", event);
           sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
         });
       },
@@ -238,6 +277,7 @@ export const ttsMachine = setup({
       initial: "Idle",
       states: {
         Idle: {
+          id: "Idle",
           on: {
             SPEAK: [
               {
@@ -262,6 +302,7 @@ export const ttsMachine = setup({
             ],
           },
         },
+
         BufferedSpeaker: {
           type: "parallel",
           invoke: {
@@ -273,13 +314,6 @@ export const ttsMachine = setup({
             STOP: {
               target: "Idle",
             },
-            SPEAK_COMPLETE: [
-              {
-                guard: stateIn("#BufferingDone"),
-                target: "Idle",
-                actions: [sendParent({ type: "SPEAK_COMPLETE" })],
-              },
-            ],
           },
           states: {
             Buffer: {
@@ -295,18 +329,8 @@ export const ttsMachine = setup({
               states: {
                 BufferIdle: {
                   id: "BufferIdle",
-                  entry: [
-                    ({ event }) => console.debug("=== Entry BufferIdle", event),
-                  ],
                   on: {
                     STREAMING_CHUNK: {
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "=================STREAMING_CHUNK: BufferIdle => Buffering",
-                            event,
-                          ),
-                      ],
                       target: "Buffering",
                     },
                   },
@@ -316,13 +340,6 @@ export const ttsMachine = setup({
                   on: {
                     STREAMING_CHUNK: [
                       {
-                        actions: [
-                          ({ event }) =>
-                            console.debug(
-                              "=================STREAMING_CHUNK: Buffering => Buffering",
-                              event,
-                            ),
-                        ],
                         target: "Buffering",
                         reenter: true,
                       },
@@ -330,18 +347,10 @@ export const ttsMachine = setup({
                     STREAMING_DONE: [
                       {
                         target: "BufferingDone",
-                        actions: [
-                          ({ event }) =>
-                            console.debug(
-                              "=================STREAMING_DONE: Buffering => BufferingDone",
-                              event,
-                            ),
-                        ],
                       },
                     ],
                   },
                   entry: [
-                    ({ event }) => console.debug("=== Entry Buffering", event),
                     assign({
                       buffer: ({ context, event }) =>
                         context.buffer + (event as any).value,
@@ -349,11 +358,8 @@ export const ttsMachine = setup({
                   ],
                 },
                 BufferingDone: {
-                  entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry BufferingDone", event),
-                  ],
                   id: "BufferingDone",
+                  type: "final",
                 },
               },
             },
@@ -361,20 +367,12 @@ export const ttsMachine = setup({
               initial: "SpeakingIdle",
               states: {
                 SpeakingIdle: {
-                  entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry SpeakingIdle", event),
-                  ],
+                  id: "SpeakingIdle",
                   always: [
                     {
                       target: "Speak",
                       guard: stateIn("#BufferingDone"),
                       actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "========== in BufferingDone: SpeakingIdle => Speak",
-                            event,
-                          ),
                         assign({
                           utteranceFromStream: ({ context }) => context.buffer,
                         }),
@@ -399,8 +397,6 @@ export const ttsMachine = setup({
                 },
                 PrepareSpeech: {
                   entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry PrepareSpeech", event),
                     assign(({ context }) => {
                       let utterancePart: string;
                       let restOfBuffer: string;
@@ -422,27 +418,106 @@ export const ttsMachine = setup({
                   ],
                 },
                 Speak: {
-                  entry: [
-                    ({ event }) => console.debug("=== Entry Speak", event),
-                  ],
-                  initial: "Go",
-                  on: {
-                    TTS_STARTED: {
-                      actions: sendParent({ type: "TTS_STARTED" }),
-                    },
-                    SPEAK_COMPLETE: [
-                      {
-                        guard: stateIn("#Buffering"),
-                        target: "SpeakingIdle",
-                      },
-                      {
-                        guard: "bufferIsNonEmpty",
-                        target: "SpeakingIdle",
-                      },
-                    ],
-                  },
+                  initial: "Init",
                   states: {
+                    Init: {
+                      always: [
+                        {
+                          target: "CheckCache",
+                          guard: ({ context }) => !!context.agenda.cache,
+                        },
+                        { target: "Go" },
+                      ],
+                    },
+                    CheckCache: {
+                      invoke: {
+                        src: "checkCache",
+                        input: ({ context }) => ({
+                          cacheURL: context.agenda.cache,
+                          utterance: context.utteranceFromStream,
+                          voice:
+                            context.currentVoice ||
+                            context.agenda.voice ||
+                            context.ttsDefaultVoice,
+                          locale: context.locale,
+                        }),
+                        onError: "Go",
+                        onDone: [
+                          {
+                            target: "UseCache",
+                            guard: ({ event }) => event.output.blob_exists,
+                          },
+                          { target: "Go" },
+                        ],
+                      },
+                    },
+                    UseCache: {
+                      initial: "GetAudio",
+                      states: {
+                        GetAudio: {
+                          invoke: {
+                            src: "getAudioFromCache",
+                            input: ({ context }) => ({
+                              audioContext: context.audioContext,
+                              cacheURL: context.agenda.cache,
+                              utterance: context.utteranceFromStream,
+                              voice:
+                                context.currentVoice ||
+                                context.agenda.voice ||
+                                context.ttsDefaultVoice,
+                              locale: context.locale,
+                            }),
+                            onDone: {
+                              target: "PlayAudio",
+                              actions: assign(({ context, event }) => {
+                                return {
+                                  audioBuffer: event.output,
+                                };
+                              }),
+                            },
+                            onError: "#TtsStreamGo",
+                          },
+                        },
+                        PlayAudio: {
+                          invoke: {
+                            src: "playAudio",
+                            input: ({ context }) => ({
+                              audioBuffer: context.audioBuffer,
+                              audioContext: context.audioContext,
+                            }),
+                          },
+                          on: {
+                            CONTROL: "PausedAudio",
+                            SPEAK_COMPLETE: [
+                              {
+                                target: "#SpeakingDone",
+                                guard: and([
+                                  stateIn("#BufferingDone"),
+                                  not("bufferIsNonEmpty"),
+                                ]),
+                              },
+                              { target: "#SpeakingIdle" },
+                            ],
+                            TTS_STARTED: {
+                              actions: [
+                                sendParent({ type: "TTS_STARTED" }),
+                                assign(({ event }) => {
+                                  return { audioBufferSourceNode: event.value };
+                                }),
+                              ],
+                            },
+                          },
+                          exit: "ttsStop",
+                        },
+                        PausedAudio: {
+                          on: {
+                            CONTROL: "PlayAudio",
+                          },
+                        },
+                      },
+                    },
                     Go: {
+                      id: "TtsStreamGo",
                       invoke: {
                         src: "start",
                         input: ({ context }) => ({
@@ -460,19 +535,39 @@ export const ttsMachine = setup({
                       },
                       on: {
                         CONTROL: "Paused",
+                        SPEAK_COMPLETE: [
+                          {
+                            target: "#SpeakingDone",
+                            guard: and([
+                              stateIn("#BufferingDone"),
+                              not("bufferIsNonEmpty"),
+                            ]),
+                          },
+                          { target: "#SpeakingIdle" },
+                        ],
+                        TTS_STARTED: {
+                          actions: sendParent({ type: "TTS_STARTED" }),
+                        },
                       },
                       exit: "ttsStop",
                     },
                     Paused: {
                       on: {
-                        SPEAK_COMPLETE: {},
                         CONTROL: "Go",
                       },
                     },
                   },
                 },
+                SpeakingDone: {
+                  id: "SpeakingDone",
+                  type: "final",
+                },
               },
             },
+          },
+          onDone: {
+            target: "Idle",
+            actions: sendParent({ type: "SPEAK_COMPLETE" }),
           },
         },
 

@@ -33,6 +33,7 @@ export interface Agenda {
   utterance: string;
   voice?: string;
   stream?: string;
+  cache?: string;
   fillerDelay?: number;
   visemes?: boolean;
   audioURL?: string;

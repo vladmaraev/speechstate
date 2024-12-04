@@ -2,7 +2,6 @@
   "name": "speechstate",
   "version": "2.7.0",
   "license": "GPL-3.0",
-  "type": "module",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
