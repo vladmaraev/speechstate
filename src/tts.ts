@@ -81,7 +81,7 @@ export const ttsMachine = setup({
         body: JSON.stringify({
           utterance: input.utterance,
           voice: input.voice,
-          locale: input.locale,
+          locale: input.locale.replace("-", "_"),
         }),
       }).then((res) => res.json());
       return response;
@@ -446,8 +446,20 @@ export const ttsMachine = setup({
                           {
                             target: "UseCache",
                             guard: ({ event }) => event.output.blob_exists,
+                            actions: ({ event }) =>
+                              console.debug(
+                                "[TTS CheckCache] cache exists",
+                                event.output,
+                              ),
                           },
-                          { target: "Go" },
+                          {
+                            target: "Go",
+                            actions: ({ event }) =>
+                              console.debug(
+                                "[TTS CheckCache] cache does not exist",
+                                event.output,
+                              ),
+                          },
                         ],
                       },
                     },
