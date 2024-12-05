@@ -29,7 +29,7 @@ describe("Synthesis test", async () => {
   actor
     .getSnapshot()
     .context.ssRef.getSnapshot()
-    .context.ttsRef.subscribe((snapshot) =>
+    .context.ttsRef.subscribe((snapshot: any) =>
       console.log("[test.TTS state]", snapshot.value),
     );
 
@@ -153,7 +153,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream, use cache; stop and restart on CONTROL", async () => {
+  test("synthesise from stream, use cache; stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {

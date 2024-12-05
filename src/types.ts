@@ -27,6 +27,7 @@ export interface Settings {
   speechRecognitionEndpointId?: string;
   ttsDefaultVoice?: string;
   ttsLexicon?: string;
+  newTokenInterval?: number;
 }
 
 export interface Agenda {
@@ -88,6 +89,7 @@ export interface MySpeechGrammarList extends SpeechGrammarList {
 
 export type ASREvent =
   | { type: "READY"; value: { asr: SpeechRecognition } }
+  | { type: "NEW_TOKEN"; value: string }
   | { type: "ERROR" }
   | { type: "NOINPUT" }
   | { type: "CONTROL" }
@@ -103,18 +105,17 @@ export type ASREvent =
   | { type: "RESULT"; value: Hypothesis[] };
 
 export interface ASRContext extends ASRInit {
-  azureAuthorizationToken?: string;
   result?: Hypothesis[];
   nluResult?: any; // TODO
   params?: RecogniseParameters;
 }
 
 export interface ASRInit {
+  azureAuthorizationToken: string;
   asrDefaultCompleteTimeout: number;
   asrDefaultNoInputTimeout: number;
   locale: string;
   audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   speechRecognitionEndpointId?: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
@@ -139,8 +140,8 @@ export interface ConstructableSpeechSynthesisUtterance
 }
 
 export interface TTSInit {
+  azureAuthorizationToken: string;
   audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   ttsDefaultVoice: string;
   ttsLexicon?: string;
@@ -148,7 +149,6 @@ export interface TTSInit {
 }
 
 export interface TTSContext extends TTSInit {
-  azureAuthorizationToken?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: ConstructableSpeechSynthesisUtterance;
@@ -168,6 +168,7 @@ export interface TTSPonyfillInput {
 
 export type TTSEvent =
   | { type: "PREPARE" }
+  | { type: "NEW_TOKEN"; value: string }
   | { type: "CONTROL" }
   | { type: "STOP" }
   | {
