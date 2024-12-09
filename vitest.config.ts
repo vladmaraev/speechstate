@@ -4,8 +4,8 @@ export default defineConfig({
   test: {
     browser: {
       enabled: true,
-      name: "firefox",
-      provider: "webdriverio",
+      name: "chromium",
+      provider: "playwright",
       providerOptions: {},
     },
   },

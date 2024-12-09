@@ -4,7 +4,8 @@ import { describe, test, expect, beforeEach } from "vitest";
 import { speechstate } from "../src/speechstate";
 import {
   AZURE_KEY,
-  CUSTOM_ASR_ENDPOINT_ID,
+  /** uncomment to test custom ASR */
+  // CUSTOM_ASR_ENDPOINT_ID,
   AZURE_LANGUAGE_CREDENTIALS,
 } from "../src/credentials";
 import { waitForView, pause } from "./helpers";
@@ -32,10 +33,10 @@ describe("Recognition test", async () => {
         nluResult: undefined,
         ssRef: spawn(speechstate, {
           input: {
-            azureRegion: "northeurope",
+            azureRegion: "swedencentral",
             azureCredentials: {
               endpoint:
-                "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
+                "https://swedencentral.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
               key: AZURE_KEY,
             },
             /** uncomment to test custom ASR */
@@ -56,7 +57,7 @@ describe("Recognition test", async () => {
   actor
     .getSnapshot()
     .context.ssRef.getSnapshot()
-    .context.asrRef.subscribe((snapshot) =>
+    .context.asrRef.subscribe((snapshot: any) =>
       console.debug("[test.ASR state]", snapshot.value),
     );
 
@@ -219,7 +220,7 @@ describe("Recognition test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("test NLU", async () => {
+  test("test NLU", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "Tea or coffee?" },

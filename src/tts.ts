@@ -4,7 +4,9 @@ import {
   assign,
   fromCallback,
   stateIn,
-  raise,
+  fromPromise,
+  and,
+  not,
 } from "xstate";
 
 import {
@@ -15,8 +17,6 @@ import {
   TTSPonyfillInput,
   ConstructableSpeechSynthesisUtterance,
 } from "./types";
-
-import { getToken } from "./getToken";
 
 import createSpeechSynthesisPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
 import type { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
@@ -32,6 +32,9 @@ export const ttsMachine = setup({
   actions: {
     ttsStop: ({ context }) => {
       context.wsaTTS!.cancel();
+      if (context.audioBufferSourceNode) {
+        context.audioBufferSourceNode.stop();
+      }
     },
     addFiller: assign(({ context }) => {
       const spaceIndex = context.buffer.lastIndexOf(" ");
@@ -65,28 +68,92 @@ export const ttsMachine = setup({
     ),
   },
   actors: {
-    getToken: getToken,
+    checkCache: fromPromise<
+      any,
+      { cacheURL: string; utterance: string; voice: string; locale: string }
+    >(async ({ input }) => {
+      const response = fetch(input.cacheURL + "check-tts", {
+        method: "POST",
+        body: JSON.stringify({
+          utterance: input.utterance,
+          voice: input.voice,
+          locale: input.locale.replace("-", "_"),
+        }),
+      }).then((res) => res.json());
+      return response;
+    }),
+    getAudioFromCache: fromPromise<
+      any,
+      {
+        audioContext: AudioContext;
+        cacheURL: string;
+        utterance: string;
+        voice: string;
+        locale: string;
+      }
+    >(async ({ input }) => {
+      const audioCtx = input.audioContext;
+      const response = await fetch(input.cacheURL + "generate-tts", {
+        method: "POST",
+        body: JSON.stringify({
+          utterance: input.utterance,
+          voice: input.voice,
+          locale: input.locale.replace("-", "_"),
+        }),
+      })
+        .then((res) => res.json())
+        .then((json) => json.tts_data)
+        .then((data) => data.slice(2, -1))
+        .then(
+          (raw) => Uint8Array.from(atob(raw), (c) => c.charCodeAt(0)).buffer,
+        );
+      let buffer = await audioCtx.decodeAudioData(response);
+      console.debug("[tts.getAudioFromCache] has received data");
+      return buffer;
+    }),
+    getAudio: fromPromise<
+      any,
+      { audioContext: AudioContext; audioURL: string }
+    >(async ({ input }) => {
+      const response = await fetch(input.audioURL);
+      const audioCtx = input.audioContext;
+      let buffer = audioCtx.decodeAudioData(await response.arrayBuffer());
+      return buffer;
+    }),
+    playAudio: fromCallback(
+      ({
+        sendBack,
+        input,
+      }: {
+        sendBack: any;
+        input: { audioContext: AudioContext; audioBuffer: AudioBuffer };
+      }) => {
+        let source = input.audioContext.createBufferSource();
+        source.buffer = input.audioBuffer;
+        source.connect(input.audioContext.destination);
+        source.start();
+        sendBack({ type: "TTS_STARTED", value: source });
+        source.addEventListener("ended", () => {
+          sendBack({ type: "SPEAK_COMPLETE" });
+          console.debug("[TTS] SPEAK_COMPLETE (audio)");
+        });
+      },
+    ),
     createEventsFromStream: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
-          console.debug("[TTS] received streaming done - closing event stream");
           sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
         });
-        eventSource.addEventListener("STREAMING_RESET", (_event) => {
-          console.debug("[TTS] received streaming reset");
-        });
+        eventSource.addEventListener("STREAMING_RESET", (_event) => {});
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
-          console.debug("[TTS] received streaming chunk:", event);
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
-          console.debug("[TTS] received streaming voice set command:", event);
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
-          console.debug("[TTS] received streaming persona set command:", event);
           sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
         });
       },
@@ -165,7 +232,6 @@ export const ttsMachine = setup({
   guards: {
     bufferContainsUtterancePartReadyToBeSpoken: ({ context }) => {
       const m = context.buffer.match(UTTERANCE_CHUNK_REGEX);
-
       return !!m;
     },
     bufferIsNonEmpty: ({ context }) => {
@@ -180,355 +246,488 @@ export const ttsMachine = setup({
 }).createMachine({
   id: "tts",
   context: ({ input }) => ({
+    azureAuthorizationToken: input.azureAuthorizationToken,
     ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
     ttsLexicon: input.ttsLexicon,
     audioContext: input.audioContext,
-    azureCredentials: input.azureCredentials,
     azureRegion: input.azureRegion,
     locale: input.locale || "en-US",
     buffer: "",
   }),
-  initial: "GetToken",
   on: {
-    READY: {
-      target: ".Ready",
-      actions: [
-        assign({
-          wsaTTS: ({ event }) => event.value.wsaTTS,
-          wsaUtt: ({ event }) => event.value.wsaUtt,
-        }),
-        sendParent({ type: "TTS_READY" }),
-      ],
-    },
     ERROR: { actions: sendParent({ type: "TTS_ERROR" }) },
   },
+  type: "parallel",
   states: {
-    Ready: {
-      initial: "Idle",
+    Operation: {
+      initial: "NotReady",
       states: {
-        Idle: {
+        NotReady: {
           on: {
-            SPEAK: [
-              {
-                target: "BufferedSpeaker",
-                guard: ({ event }) => !!event.value.stream,
-                actions: assign({
-                  agenda: ({ event }) =>
-                    event.value.fillerDelay
-                      ? event.value
-                      : { ...event.value, fillerDelay: 500 },
-                }),
-              },
-              {
-                target: "Speaking",
-                actions: assign({ agenda: ({ event }) => event.value }),
-              },
-            ],
+            READY: {
+              target: "Ready",
+              actions: sendParent({ type: "TTS_READY" }),
+            },
           },
         },
-        BufferedSpeaker: {
-          type: "parallel",
-          invoke: {
-            id: "createEventsFromStream",
-            src: "createEventsFromStream",
-            input: ({ context }) => context.agenda,
-          },
-          on: {
-            STOP: {
-              target: "Idle",
-            },
-            SPEAK_COMPLETE: [
-              {
-                guard: stateIn("#BufferingDone"),
-                target: "Idle",
-                actions: [sendParent({ type: "SPEAK_COMPLETE" })],
-              },
-            ],
-          },
+        Ready: {
+          initial: "Idle",
           states: {
-            Buffer: {
-              initial: "BufferIdle",
+            Idle: {
+              id: "Idle",
               on: {
-                STREAMING_SET_VOICE: {
-                  actions: "assignCurrentVoice",
-                },
-                STREAMING_SET_PERSONA: {
-                  actions: "sendParentCurrentPersona",
-                },
-              },
-              states: {
-                BufferIdle: {
-                  id: "BufferIdle",
-                  entry: [
-                    ({ event }) => console.debug("=== Entry BufferIdle", event),
-                  ],
-                  on: {
-                    STREAMING_CHUNK: {
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "=================STREAMING_CHUNK: BufferIdle => Buffering",
-                            event,
-                          ),
-                      ],
-
-                      target: "Buffering",
-                    },
-                  },
-                },
-                Buffering: {
-                  id: "Buffering",
-                  on: {
-                    STREAMING_CHUNK: [
-                      {
-                        actions: [
-                          ({ event }) =>
-                            console.debug(
-                              "=================STREAMING_CHUNK: Buffering => Buffering",
-                              event,
-                            ),
-                        ],
-                        target: "Buffering",
-                        reenter: true,
-                      },
-                    ],
-                    STREAMING_DONE: [
-                      {
-                        target: "BufferingDone",
-                        actions: [
-                          ({ event }) =>
-                            console.debug(
-                              "=================STREAMING_DONE: Buffering => BufferingDone",
-                              event,
-                            ),
-                        ],
-                      },
-                    ],
-                  },
-                  entry: [
-                    ({ event }) => console.debug("=== Entry Buffering", event),
-                    assign({
-                      buffer: ({ context, event }) =>
-                        context.buffer + (event as any).value,
+                SPEAK: [
+                  {
+                    target: "BufferedSpeaker",
+                    guard: ({ event }) => !!event.value.stream,
+                    actions: assign({
+                      agenda: ({ event }) =>
+                        event.value.fillerDelay
+                          ? event.value
+                          : { ...event.value, fillerDelay: 500 },
                     }),
-                  ],
-                },
-                BufferingDone: {
-                  entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry BufferingDone", event),
-                  ],
-
-                  id: "BufferingDone",
-                },
+                  },
+                  {
+                    target: "Playing",
+                    guard: ({ event }) => !!event.value.audioURL,
+                    actions: assign({ agenda: ({ event }) => event.value }),
+                  },
+                  {
+                    target: "Speaking",
+                    actions: assign({ agenda: ({ event }) => event.value }),
+                  },
+                ],
               },
             },
-            Speaker: {
-              initial: "SpeakingIdle",
-              states: {
-                SpeakingIdle: {
-                  entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry SpeakingIdle", event),
-                  ],
-                  always: [
-                    {
-                      target: "Speak",
-                      guard: stateIn("#BufferingDone"),
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "========== in BufferingDone: SpeakingIdle => Speak",
-                            event,
-                          ),
-                        assign({
-                          utteranceFromStream: ({ context }) => context.buffer,
-                        }),
-                        assign({
-                          buffer: "",
-                        }),
-                      ],
-                    },
-                    {
-                      target: "PrepareSpeech",
-                      guard: "bufferContainsUtterancePartReadyToBeSpoken",
-                    },
-                  ],
-                  after: {
-                    FILLER_DELAY: {
-                      target: "SpeakingIdle",
-                      reenter: true,
-                      actions: "addFiller",
-                      guard: ({ context }) => context.buffer.includes(" "),
-                    },
-                  },
-                },
-                PrepareSpeech: {
-                  entry: [
-                    ({ event }) =>
-                      console.debug("=== Entry PrepareSpeech", event),
-                    assign(({ context }) => {
-                      let utterancePart: string;
-                      let restOfBuffer: string;
-                      const match = context.buffer.match(UTTERANCE_CHUNK_REGEX);
-                      utterancePart = match![0];
-                      restOfBuffer = context.buffer.substring(
-                        utterancePart.length,
-                      );
 
-                      return {
-                        buffer: restOfBuffer,
-                        utteranceFromStream: utterancePart,
-                      };
-                    }),
-                  ],
-                  always: [
-                    {
-                      target: "Speak",
-                    },
-                  ],
+            BufferedSpeaker: {
+              type: "parallel",
+              invoke: {
+                id: "createEventsFromStream",
+                src: "createEventsFromStream",
+                input: ({ context }) => context.agenda,
+              },
+              on: {
+                STOP: {
+                  target: "Idle",
                 },
-                Speak: {
-                  entry: [
-                    ({ event }) => console.debug("=== Entry Speak", event),
-                  ],
-                  initial: "Go",
+              },
+              states: {
+                Buffer: {
+                  initial: "BufferIdle",
                   on: {
-                    TTS_STARTED: {
-                      actions: sendParent({ type: "TTS_STARTED" }),
+                    STREAMING_SET_VOICE: {
+                      actions: "assignCurrentVoice",
                     },
-                    SPEAK_COMPLETE: [
-                      {
-                        guard: stateIn("#Buffering"),
-                        target: "SpeakingIdle",
-                      },
-                      {
-                        guard: "bufferIsNonEmpty",
-                        target: "SpeakingIdle",
-                      },
-                    ],
+                    STREAMING_SET_PERSONA: {
+                      actions: "sendParentCurrentPersona",
+                    },
                   },
                   states: {
-                    Go: {
-                      invoke: {
-                        src: "start",
-                        input: ({ context }) => ({
-                          wsaTTS: context.wsaTTS,
-                          wsaUtt: context.wsaUtt,
-                          ttsLexicon: context.ttsLexicon,
-                          visemes: context.agenda.visemes,
-                          voice:
-                            context.currentVoice ||
-                            context.agenda.voice ||
-                            context.ttsDefaultVoice,
-                          locale: context.locale,
-                          utterance: context.utteranceFromStream,
+                    BufferIdle: {
+                      id: "BufferIdle",
+                      on: {
+                        STREAMING_CHUNK: {
+                          target: "Buffering",
+                        },
+                      },
+                    },
+                    Buffering: {
+                      id: "Buffering",
+                      on: {
+                        STREAMING_CHUNK: [
+                          {
+                            target: "Buffering",
+                            reenter: true,
+                          },
+                        ],
+                        STREAMING_DONE: [
+                          {
+                            target: "BufferingDone",
+                          },
+                        ],
+                      },
+                      entry: [
+                        assign({
+                          buffer: ({ context, event }) =>
+                            context.buffer + (event as any).value,
                         }),
-                      },
-                      on: {
-                        CONTROL: "Paused",
-                      },
-                      exit: "ttsStop",
+                      ],
                     },
-                    Paused: {
-                      on: {
-                        SPEAK_COMPLETE: {},
-                        CONTROL: "Go",
+                    BufferingDone: {
+                      id: "BufferingDone",
+                      type: "final",
+                    },
+                  },
+                },
+                Speaker: {
+                  initial: "SpeakingIdle",
+                  states: {
+                    SpeakingIdle: {
+                      id: "SpeakingIdle",
+                      always: [
+                        {
+                          target: "Speak",
+                          guard: stateIn("#BufferingDone"),
+                          actions: [
+                            assign({
+                              utteranceFromStream: ({ context }) =>
+                                context.buffer,
+                            }),
+                            assign({
+                              buffer: "",
+                            }),
+                          ],
+                        },
+                        {
+                          target: "PrepareSpeech",
+                          guard: "bufferContainsUtterancePartReadyToBeSpoken",
+                        },
+                      ],
+                      after: {
+                        FILLER_DELAY: {
+                          target: "SpeakingIdle",
+                          reenter: true,
+                          actions: "addFiller",
+                          guard: ({ context }) => context.buffer.includes(" "),
+                        },
                       },
                     },
+                    PrepareSpeech: {
+                      entry: [
+                        assign(({ context }) => {
+                          let utterancePart: string;
+                          let restOfBuffer: string;
+                          const match = context.buffer.match(
+                            UTTERANCE_CHUNK_REGEX,
+                          );
+                          utterancePart = match![0];
+                          restOfBuffer = context.buffer.substring(
+                            utterancePart.length,
+                          );
+                          return {
+                            buffer: restOfBuffer,
+                            utteranceFromStream: utterancePart,
+                          };
+                        }),
+                      ],
+                      always: [
+                        {
+                          target: "Speak",
+                        },
+                      ],
+                    },
+                    Speak: {
+                      initial: "Init",
+                      states: {
+                        Init: {
+                          always: [
+                            {
+                              target: "CheckCache",
+                              guard: ({ context }) => !!context.agenda.cache,
+                            },
+                            { target: "Go" },
+                          ],
+                        },
+                        CheckCache: {
+                          invoke: {
+                            src: "checkCache",
+                            input: ({ context }) => ({
+                              cacheURL: context.agenda.cache,
+                              utterance: context.utteranceFromStream,
+                              voice:
+                                context.currentVoice ||
+                                context.agenda.voice ||
+                                context.ttsDefaultVoice,
+                              locale: context.locale,
+                            }),
+                            onError: "Go",
+                            onDone: [
+                              {
+                                target: "UseCache",
+                                guard: ({ event }) => event.output.blob_exists,
+                                actions: ({ event }) =>
+                                  console.debug(
+                                    "[TTS CheckCache] cache exists",
+                                    event.output,
+                                  ),
+                              },
+                              {
+                                target: "Go",
+                                actions: ({ event }) =>
+                                  console.debug(
+                                    "[TTS CheckCache] cache does not exist",
+                                    event.output,
+                                  ),
+                              },
+                            ],
+                          },
+                        },
+                        UseCache: {
+                          initial: "GetAudio",
+                          states: {
+                            GetAudio: {
+                              invoke: {
+                                src: "getAudioFromCache",
+                                input: ({ context }) => ({
+                                  audioContext: context.audioContext,
+                                  cacheURL: context.agenda.cache,
+                                  utterance: context.utteranceFromStream,
+                                  voice:
+                                    context.currentVoice ||
+                                    context.agenda.voice ||
+                                    context.ttsDefaultVoice,
+                                  locale: context.locale,
+                                }),
+                                onDone: {
+                                  target: "PlayAudio",
+                                  actions: assign(({ event }) => {
+                                    return {
+                                      audioBuffer: event.output,
+                                    };
+                                  }),
+                                },
+                                onError: "#TtsStreamGo",
+                              },
+                            },
+                            PlayAudio: {
+                              invoke: {
+                                src: "playAudio",
+                                input: ({ context }) => ({
+                                  audioBuffer: context.audioBuffer,
+                                  audioContext: context.audioContext,
+                                }),
+                              },
+                              on: {
+                                CONTROL: "PausedAudio",
+                                SPEAK_COMPLETE: [
+                                  {
+                                    target: "#SpeakingDone",
+                                    guard: and([
+                                      stateIn("#BufferingDone"),
+                                      not("bufferIsNonEmpty"),
+                                    ]),
+                                  },
+                                  { target: "#SpeakingIdle" },
+                                ],
+                                TTS_STARTED: {
+                                  actions: [
+                                    sendParent({ type: "TTS_STARTED" }),
+                                    assign(({ event }) => {
+                                      return {
+                                        audioBufferSourceNode: event.value,
+                                      };
+                                    }),
+                                  ],
+                                },
+                              },
+                              exit: "ttsStop",
+                            },
+                            PausedAudio: {
+                              on: {
+                                CONTROL: "PlayAudio",
+                              },
+                            },
+                          },
+                        },
+                        Go: {
+                          id: "TtsStreamGo",
+                          invoke: {
+                            src: "start",
+                            input: ({ context }) => ({
+                              wsaTTS: context.wsaTTS,
+                              wsaUtt: context.wsaUtt,
+                              ttsLexicon: context.ttsLexicon,
+                              visemes: context.agenda.visemes,
+                              voice:
+                                context.currentVoice ||
+                                context.agenda.voice ||
+                                context.ttsDefaultVoice,
+                              locale: context.locale,
+                              utterance: context.utteranceFromStream,
+                            }),
+                          },
+                          on: {
+                            CONTROL: "Paused",
+                            SPEAK_COMPLETE: [
+                              {
+                                target: "#SpeakingDone",
+                                guard: and([
+                                  stateIn("#BufferingDone"),
+                                  not("bufferIsNonEmpty"),
+                                ]),
+                              },
+                              { target: "#SpeakingIdle" },
+                            ],
+                            TTS_STARTED: {
+                              actions: sendParent({ type: "TTS_STARTED" }),
+                            },
+                          },
+                          exit: "ttsStop",
+                        },
+                        Paused: {
+                          on: {
+                            CONTROL: "Go",
+                          },
+                        },
+                      },
+                    },
+                    SpeakingDone: {
+                      id: "SpeakingDone",
+                      type: "final",
+                    },
+                  },
+                },
+              },
+              onDone: {
+                target: "Idle",
+                actions: sendParent({ type: "SPEAK_COMPLETE" }),
+              },
+            },
+
+            Playing: {
+              on: {
+                SPEAK_COMPLETE: {
+                  target: "Idle",
+                },
+                TTS_STARTED: {
+                  actions: [
+                    sendParent({ type: "TTS_STARTED" }),
+                    assign(({ event }) => {
+                      return { audioBufferSourceNode: event.value };
+                    }),
+                  ],
+                },
+                STOP: {
+                  actions: () => console.log("STOP"),
+                  target: "Idle",
+                },
+              },
+              initial: "FetchAudio",
+              states: {
+                FetchAudio: {
+                  invoke: {
+                    src: "getAudio",
+                    input: ({ context }) => ({
+                      audioContext: context.audioContext,
+                      audioURL: context.agenda.audioURL,
+                    }),
+                    onDone: {
+                      target: "PlayAudio",
+                      actions: assign(({ event }) => {
+                        return { audioBuffer: event.output };
+                      }),
+                    },
+                    onError: {
+                      target: "#Speaking",
+                    },
+                  },
+                },
+                PlayAudio: {
+                  invoke: {
+                    src: "playAudio",
+                    input: ({ context }) => ({
+                      audioContext: context.audioContext,
+                      audioBuffer: context.audioBuffer,
+                    }),
+                  },
+                  on: {
+                    CONTROL: "AudioPaused",
+                  },
+                  exit: "ttsStop",
+                },
+                AudioPaused: {
+                  on: {
+                    CONTROL: "PlayAudio",
+                  },
+                },
+              },
+            },
+
+            Speaking: {
+              id: "Speaking",
+              initial: "Go",
+              on: {
+                STOP: {
+                  target: "Idle",
+                },
+                TTS_STARTED: {
+                  actions: sendParent({ type: "TTS_STARTED" }),
+                },
+                VISEME: {
+                  actions: sendParent(
+                    ({ event }: { event: { type: "VISEME"; value: any } }) => ({
+                      type: "VISEME",
+                      value: event.value,
+                    }),
+                  ),
+                },
+                SPEAK_COMPLETE: {
+                  target: "Idle",
+                },
+              },
+              exit: sendParent({ type: "SPEAK_COMPLETE" }),
+              states: {
+                Go: {
+                  invoke: {
+                    src: "start",
+                    input: ({ context }) => ({
+                      wsaTTS: context.wsaTTS,
+                      wsaUtt: context.wsaUtt,
+                      ttsLexicon: context.ttsLexicon,
+                      voice: context.agenda.voice || context.ttsDefaultVoice,
+                      visemes: context.agenda.visemes,
+                      // streamURL: context.agenda.streamURL,
+                      locale: context.locale,
+                      utterance: context.agenda.utterance,
+                    }),
+                  },
+                  on: {
+                    CONTROL: "Paused",
+                  },
+                  exit: "ttsStop",
+                },
+                Paused: {
+                  on: {
+                    SPEAK_COMPLETE: {},
+                    CONTROL: "Go",
                   },
                 },
               },
             },
           },
         },
-
-        Speaking: {
-          initial: "Go",
-          on: {
-            STOP: {
-              target: "Idle",
-            },
-            TTS_STARTED: {
-              actions: sendParent({ type: "TTS_STARTED" }),
-            },
-            VISEME: {
-              actions: sendParent(
-                ({ event }: { event: { type: "VISEME"; value: any } }) => ({
-                  type: "VISEME",
-                  value: event.value,
-                }),
-              ),
-            },
-            SPEAK_COMPLETE: {
-              target: "Idle",
-            },
-          },
-          exit: sendParent({ type: "SPEAK_COMPLETE" }),
-          states: {
-            Go: {
-              invoke: {
-                src: "start",
-                input: ({ context }) => ({
-                  wsaTTS: context.wsaTTS,
-                  wsaUtt: context.wsaUtt,
-                  ttsLexicon: context.ttsLexicon,
-                  voice: context.agenda.voice || context.ttsDefaultVoice,
-                  visemes: context.agenda.visemes,
-                  // streamURL: context.agenda.streamURL,
-                  locale: context.locale,
-                  utterance: context.agenda.utterance,
-                }),
-              },
-              on: {
-                CONTROL: "Paused",
-              },
-              exit: "ttsStop",
-            },
-            Paused: {
-              on: {
-                SPEAK_COMPLETE: {},
-                CONTROL: "Go",
-              },
-            },
-          },
-        },
       },
     },
-    Fail: {},
-    GetToken: {
-      invoke: {
-        id: "getAuthorizationToken",
-        input: ({ context }) => ({
-          credentials: context.azureCredentials,
-        }),
-        src: "getToken",
-        onDone: {
-          target: "Ponyfill",
-          actions: [
-            assign(({ event }) => {
-              return { azureAuthorizationToken: event.output };
+    HandleNewTokens: {
+      initial: "Ponyfill",
+      states: {
+        Ponyfill: {
+          invoke: {
+            id: "ponyTTS",
+            src: "ponyfill",
+            input: ({ context }) => ({
+              audioContext: context.audioContext,
+              azureAuthorizationToken: context.azureAuthorizationToken,
+              azureRegion: context.azureRegion,
             }),
-          ],
+          },
+
+          on: {
+            READY: {
+              actions: [
+                assign({
+                  wsaTTS: ({ event }) => event.value.wsaTTS,
+                  wsaUtt: ({ event }) => event.value.wsaUtt,
+                }),
+              ],
+            },
+            NEW_TOKEN: {
+              target: "Ponyfill",
+              reenter: true,
+            },
+          },
         },
-        onError: {
-          actions: [
-            raise({ type: "ERROR" }),
-            ({ event }) => console.error("[TTS] getToken error", event),
-          ],
-          target: "Fail",
-        },
-      },
-    },
-    Ponyfill: {
-      invoke: {
-        id: "ponyTTS",
-        src: "ponyfill",
-        input: ({ context }) => ({
-          audioContext: context.audioContext,
-          azureAuthorizationToken: context.azureAuthorizationToken,
-          azureRegion: context.azureRegion,
-        }),
       },
     },
   },

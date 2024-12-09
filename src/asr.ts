@@ -18,9 +18,9 @@ import {
   AzureLanguageCredentials,
 } from "./types";
 
-import { getToken } from "./getToken";
-
-import createSpeechRecognitionPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
+import createSpeechRecognitionPonyfill, {
+  SpeechRecognitionResultListItem,
+} from "@vladmaraev/web-speech-cognitive-services-davi";
 
 export const asrMachine = setup({
   types: {
@@ -56,39 +56,39 @@ export const asrMachine = setup({
     },
   },
   actors: {
-    getToken: getToken,
     new_ponyfill: fromCallback<null, ASRPonyfillInput>(
       ({ sendBack, input, receive }) => {
-        const { SpeechGrammarList, speechRecognition } =
-          createSpeechRecognitionPonyfill(
-            {
-              audioContext: input.audioContext,
-              speechRecognitionEndpointId: input.speechRecognitionEndpointId,
-              credentials: {
-                region: input.azureRegion,
-                authorizationToken: input.azureAuthorizationToken,
-              },
+        const { speechRecognition } = createSpeechRecognitionPonyfill(
+          {
+            audioContext: input.audioContext,
+            speechRecognitionEndpointId: input.speechRecognitionEndpointId,
+            credentials: {
+              region: input.azureRegion,
+              authorizationToken: input.azureAuthorizationToken,
             },
-            {
-              passive: false,
-              interimResults: true,
-              continuous: true,
-              lang: input.locale || "en-US",
-              grammarsList: input.hints,
-              autoStart: true,
-              timerBeforeSpeechEnd: input.completeTimeout,
-              // debug: true,
-            },
-          );
+          },
+          {
+            passive: false,
+            interimResults: true,
+            continuous: true,
+            lang: input.locale || "en-US",
+            grammarsList: input.hints,
+            autoStart: true,
+            timerBeforeSpeechEnd: input.completeTimeout,
+            // debug: true,
+          },
+        );
         let asr: SpeechRecognition = speechRecognition;
         asr.onresult = function (event: any) {
           if (event.isFinal) {
             const transcript = event
-              .map((x) => x.transcript.replace(/\.$/, ""))
+              .map((x: SpeechRecognitionResultListItem) =>
+                x.transcript.replace(/\.$/, ""),
+              )
               .join(" ");
             const confidence =
               event
-                .map((x) => x.confidence)
+                .map((x: SpeechRecognitionResultListItem) => x.confidence)
                 .reduce((a: number, b: number) => a + b) / event.length;
             const res: Hypothesis[] = [
               {
@@ -116,11 +116,7 @@ export const asrMachine = setup({
         };
         console.debug("[ASR] READY", asr);
         sendBack({ type: "READY", value: asr });
-        receive((event: { type: "START" | "STOP" }) => {
-          if (event.type === "START") {
-            console.log("[asr.callback] Receiving START");
-            asr.start();
-          }
+        receive((event: { type: "STOP" }) => {
           if (event.type === "STOP") {
             console.log("[asr.callback] Receiving STOP");
             asr.abort();
@@ -165,39 +161,25 @@ export const asrMachine = setup({
 }).createMachine({
   id: "asr",
   context: ({ input }) => ({
+    azureAuthorizationToken: input.azureAuthorizationToken,
     asrDefaultCompleteTimeout: input.asrDefaultCompleteTimeout || 0,
     asrDefaultNoInputTimeout: input.asrDefaultNoInputTimeout || 5000,
     locale: input.locale || "en-US",
     audioContext: input.audioContext,
-    azureCredentials: input.azureCredentials,
     azureRegion: input.azureRegion,
     azureLanguageCredentials: input.azureLanguageCredentials,
     speechRecognitionEndpointId: input.speechRecognitionEndpointId,
   }),
-  initial: "GetToken",
+  initial: "Ready",
+  on: {
+    NEW_TOKEN: {
+      actions: assign(({ event }) => {
+        return { azureAuthorizationToken: event.value };
+      }),
+    },
+  },
   states: {
     Fail: {},
-    GetToken: {
-      invoke: {
-        id: "getAuthorizationToken",
-        input: ({ context }) => ({
-          credentials: context.azureCredentials,
-        }),
-        src: "getToken",
-        onDone: {
-          target: "Ready",
-          actions: [
-            assign(({ event }) => {
-              return { azureAuthorizationToken: event.output };
-            }),
-          ],
-        },
-        onError: {
-          actions: ({ event }) => console.error("[ASR]", event.error),
-          target: "Fail",
-        },
-      },
-    },
     Ready: {
       entry: sendParent({ type: "ASR_READY" }),
       on: {

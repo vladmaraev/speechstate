@@ -11,10 +11,10 @@ describe("Synthesis test", async () => {
       return {
         ssRef: spawn(speechstate, {
           input: {
-            azureRegion: "northeurope",
+            azureRegion: "swedencentral",
             azureCredentials: {
               endpoint:
-                "https://northeurope.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
+                "https://swedencentral.api.cognitive.microsoft.com/sts/v1.0/issuetoken",
               key: AZURE_KEY,
             },
           },
@@ -29,7 +29,7 @@ describe("Synthesis test", async () => {
   actor
     .getSnapshot()
     .context.ssRef.getSnapshot()
-    .context.ttsRef.subscribe((snapshot) =>
+    .context.ttsRef.subscribe((snapshot: any) =>
       console.log("[test.TTS state]", snapshot.value),
     );
 
@@ -84,16 +84,16 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise from stream, pause, speak again", async () => {
+  test("synthesise from stream; stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/1" },
     });
     await waitForView(actor, "speaking", 500);
-    await pause(2000);
+    await pause(1000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
-    await pause(1000);
+    await pause(3000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
@@ -104,6 +104,70 @@ describe("Synthesis test", async () => {
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/2" },
     });
+    const snapshot = await waitForView(actor, "speaking", 1000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("play audio, stop and restart on CONTROL", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Imagine that I am playing some hard rock!",
+        audioURL:
+          "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/viper.mp3",
+      },
+    });
+    await waitForView(actor, "speaking", 1000);
+    await pause(5000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "speaking-paused", 3000);
+    await pause(1000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    const snapshot = await waitForView(actor, "speaking", 1000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("Fallback to TTS if audio is not available", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Imagine that I am playing some hard rock!",
+        audioURL:
+          "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/undefined.mp3",
+      },
+    });
+    const snapshot = await waitForView(actor, "speaking", 1000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("synthesise from stream, use cache", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/1",
+        cache: "https://tala-tts-service.azurewebsites.net/api/",
+      },
+    });
+    const snapshot = await waitForView(actor, "speaking", 1000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("synthesise from stream, use cache; stop and restart on CONTROL", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/1",
+        cache: "https://tala-tts-service.azurewebsites.net/api/",
+      },
+    });
+    await waitForView(actor, "speaking", 1000);
+    await pause(1000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "speaking-paused", 1000);
+    await pause(3000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
   });

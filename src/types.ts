@@ -27,14 +27,17 @@ export interface Settings {
   speechRecognitionEndpointId?: string;
   ttsDefaultVoice?: string;
   ttsLexicon?: string;
+  newTokenInterval?: number;
 }
 
 export interface Agenda {
   utterance: string;
   voice?: string;
   stream?: string;
+  cache?: string;
   fillerDelay?: number;
   visemes?: boolean;
+  audioURL?: string;
 }
 
 export interface Hypothesis {
@@ -86,6 +89,7 @@ export interface MySpeechGrammarList extends SpeechGrammarList {
 
 export type ASREvent =
   | { type: "READY"; value: { asr: SpeechRecognition } }
+  | { type: "NEW_TOKEN"; value: string }
   | { type: "ERROR" }
   | { type: "NOINPUT" }
   | { type: "CONTROL" }
@@ -101,18 +105,17 @@ export type ASREvent =
   | { type: "RESULT"; value: Hypothesis[] };
 
 export interface ASRContext extends ASRInit {
-  azureAuthorizationToken?: string;
   result?: Hypothesis[];
   nluResult?: any; // TODO
   params?: RecogniseParameters;
 }
 
 export interface ASRInit {
+  azureAuthorizationToken: string;
   asrDefaultCompleteTimeout: number;
   asrDefaultNoInputTimeout: number;
   locale: string;
   audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   speechRecognitionEndpointId?: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
@@ -137,8 +140,8 @@ export interface ConstructableSpeechSynthesisUtterance
 }
 
 export interface TTSInit {
+  azureAuthorizationToken: string;
   audioContext: AudioContext;
-  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   ttsDefaultVoice: string;
   ttsLexicon?: string;
@@ -146,7 +149,6 @@ export interface TTSInit {
 }
 
 export interface TTSContext extends TTSInit {
-  azureAuthorizationToken?: string;
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: ConstructableSpeechSynthesisUtterance;
@@ -154,6 +156,8 @@ export interface TTSContext extends TTSInit {
   buffer?: string;
   currentVoice?: string;
   utteranceFromStream?: string;
+  audioBuffer?: AudioBuffer;
+  audioBufferSourceNode?: AudioBufferSourceNode;
 }
 
 export interface TTSPonyfillInput {
@@ -164,6 +168,7 @@ export interface TTSPonyfillInput {
 
 export type TTSEvent =
   | { type: "PREPARE" }
+  | { type: "NEW_TOKEN"; value: string }
   | { type: "CONTROL" }
   | { type: "STOP" }
   | {
@@ -175,7 +180,7 @@ export type TTSEvent =
     }
   | { type: "ERROR" }
   | { type: "SPEAK"; value: Agenda }
-  | { type: "TTS_STARTED" }
+  | { type: "TTS_STARTED"; value?: AudioBufferSourceNode }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_SET_VOICE"; value: string }
   | { type: "STREAMING_SET_PERSONA"; value: string }
