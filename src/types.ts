@@ -19,6 +19,7 @@ export interface AzureLanguageCredentials {
 
 export interface Settings {
   locale?: string;
+  isConversationRecorded?: boolean;
   azureCredentials: string | AzureCredentials | AzureSpeechCredentials;
   azureRegion: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
@@ -59,7 +60,8 @@ type SSEventExtIn =
   | { type: "CONTROL" }
   | { type: "STOP" }
   | { type: "SPEAK"; value: Agenda }
-  | { type: "LISTEN"; value: RecogniseParameters };
+  | { type: "LISTEN"; value: RecogniseParameters }
+  | { type: "FINALISE_RECORDING" };
 
 type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
@@ -70,7 +72,8 @@ type SSEventExtOut =
   | { type: "LISTEN_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
   | { type: "VISEME"; value: any }
-  | { type: "STREAMING_SET_PERSONA"; value: string };
+  | { type: "STREAMING_SET_PERSONA"; value: string }
+  | { type: "RECORDING_AVAILABLE"; value: Blob };
 
 type SSEventIntIn =
   | { type: "TTS_READY" }

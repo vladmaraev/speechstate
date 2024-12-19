@@ -5,11 +5,14 @@ import {
   sendParent,
   stopChild,
   sendTo,
+  fromCallback,
 } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 import { visemesMachine } from "./visemes";
 import { getToken } from "./getToken";
+
+import adapter from "webrtc-adapter";
 
 import type {
   Settings,
@@ -22,6 +25,7 @@ import type {
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
+  mediaRecorder?: MediaRecorder;
   asrRef?: any;
   ttsRef?: any;
   azureAuthorizationToken?: string;
@@ -34,14 +38,46 @@ const speechstate = setup({
     events: SpeechStateEvent;
   },
   actors: {
-    audioContext: fromPromise<AudioContext, void>(async () => {
+    audioContext: fromPromise<
+      { audioContext: AudioContext; mediaRecorder?: MediaRecorder },
+      { isConversationRecorded: boolean }
+    >(async ({ input }) => {
       const audioContext = new AudioContext();
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then(function (stream) {
-          audioContext.createMediaStreamSource(stream);
+      const streamUser = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      audioContext.createMediaStreamSource(streamUser);
+      if (input.isConversationRecorded) {
+        const mediaRecorder = new MediaRecorder(streamUser, {
+          mimeType: "audio/webm",
         });
-      return audioContext;
+        mediaRecorder.start();
+        console.debug("[SpSt] recording started");
+        return { audioContext: audioContext, mediaRecorder: mediaRecorder };
+      }
+      return { audioContext: audioContext, mediaRecorder: undefined };
+    }),
+    finaliseRecording: fromCallback<
+      { type: "RECORDING_AVAILABLE"; value: Blob },
+      { mediaRecorder: MediaRecorder }
+    >(({ input, sendBack }) => {
+      const chunks = [];
+      const mr = input.mediaRecorder;
+      mr.requestData();
+      mr.stop();
+
+      mr.ondataavailable = (e) => {
+        chunks.push(e.data);
+      };
+      mr.onstop = (e) => {
+        console.debug(
+          "[SpSt] data available after MediaRecorder.stop() called.",
+        );
+        const blob = new Blob(chunks, { type: mr.mimeType });
+        const audioURL = window.URL.createObjectURL(blob);
+        console.debug("[SpSt] recorder stopped", blob, audioURL);
+        sendBack({ type: "RECORDING_AVAILABLE", value: blob });
+      };
     }),
     getToken: getToken,
     tts: ttsMachine,
@@ -120,12 +156,17 @@ const speechstate = setup({
               invoke: {
                 id: "createAudioContext",
                 src: "audioContext",
+                input: ({ context }) => ({
+                  isConversationRecorded:
+                    context.settings.isConversationRecorded,
+                }),
                 onDone: {
                   target: "GenerateToken",
                   actions: [
                     assign(({ event }) => {
                       return {
-                        audioContext: event.output,
+                        audioContext: event.output.audioContext,
+                        mediaRecorder: event.output.mediaRecorder,
                       };
                     }),
                   ],
@@ -204,6 +245,7 @@ const speechstate = setup({
             Fail: { meta: { view: "error" } },
           },
         },
+
         AsrTtsManager: {
           initial: "Initialize",
           on: {
@@ -467,6 +509,39 @@ const speechstate = setup({
             },
             Fail: { meta: { view: "error" } },
             Stopped: { meta: { view: "stopped" } },
+          },
+        },
+
+        ConversationRecorder: {
+          initial: "IdleOrDisabled",
+          states: {
+            IdleOrDisabled: {
+              always: {
+                guard: ({ context }) => !!context.mediaRecorder,
+                target: "Started",
+              },
+            },
+            Started: {
+              on: { FINALISE_RECORDING: "Finalising" },
+            },
+            Finalising: {
+              invoke: {
+                src: "finaliseRecording",
+                input: ({ context }) => ({
+                  mediaRecorder: context.mediaRecorder,
+                }),
+              },
+              on: {
+                RECORDING_AVAILABLE: {
+                  target: "Finalised",
+                  actions: sendParent(({ event }) => ({
+                    type: "RECORDING_AVAILABLE",
+                    value: (event as any).value,
+                  })),
+                },
+              },
+            },
+            Finalised: {},
           },
         },
       },
