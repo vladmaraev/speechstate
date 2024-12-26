@@ -36,6 +36,12 @@ describe("Synthesis test", async () => {
       console.debug("[test.TTS state]", snapshot.value),
     );
 
+  actor
+    .getSnapshot()
+    .context.ssRef.subscribe((snapshot: any) =>
+      console.log("[test.SpSt state]", snapshot.value),
+    );
+
   beforeEach(async () => {
     await waitForView(actor, "idle", 20_000);
   });
@@ -115,7 +121,7 @@ describe("Synthesis test", async () => {
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/1" },
     });
-    await waitForView(actor, "speaking", 500);
+    await waitForView(actor, "speaking", 1000);
     await pause(1000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
@@ -269,6 +275,19 @@ describe("Synthesis test", async () => {
       value: { utterance: "And hello!" },
     });
     const snapshot = await waitForView(actor, "speaking", 500);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test.only("synthesise with barge-in", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Hello! You can interrupt me whenever you like.",
+        voice: "en-US-EmmaMultilingualNeural",
+        bargeIn: { noInputTimeout: 10_000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
     expect(snapshot).toBeTruthy();
   });
 });

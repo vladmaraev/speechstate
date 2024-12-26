@@ -269,11 +269,25 @@ export const asrMachine = setup({
           },
         },
         NoInput: {
-          entry: { type: "raise_noinput_after_timeout" },
+          initial: "Wait",
           on: {
             STARTSPEECH: {
               target: "InProgress",
-              actions: cancel("completeTimeout"),
+              actions: [
+                sendParent({ type: "STARTSPEECH" }),
+                cancel("completeTimeout"),
+              ],
+            },
+          },
+          states: {
+            Wait: {
+              on: { START_NOINPUT_TIMEOUT: "ApplyNoInputTimeout" },
+            },
+            ApplyNoInputTimeout: {
+              entry: [
+                () => console.debug("[ASR] START_NOINPUT_TIMEOUT"),
+                { type: "raise_noinput_after_timeout" },
+              ],
             },
           },
           exit: { type: "cancel_noinput_timeout" },
