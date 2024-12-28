@@ -32,6 +32,7 @@ export interface Settings {
 
 export interface Agenda {
   utterance: string;
+  bargeIn: false | RecogniseParameters;
   voice?: string;
   stream?: string;
   cache?: string;
@@ -58,7 +59,7 @@ type SSEventExtIn =
   | { type: "PREPARE" }
   | { type: "CONTROL" }
   | { type: "STOP" }
-  | { type: "SPEAK"; value: Agenda }
+  | TTSSpeakEvent
   | { type: "LISTEN"; value: RecogniseParameters };
 
 type SSEventExtOut =
@@ -102,7 +103,8 @@ export type ASREvent =
   | { type: "RECOGNISED"; value: Hypothesis[] }
   | { type: "STOP" }
   | { type: "LISTEN_COMPLETE" }
-  | { type: "RESULT"; value: Hypothesis[] };
+  | { type: "RESULT"; value: Hypothesis[] }
+  | { type: "START_NOINPUT_TIMEOUT" };
 
 export interface ASRContext extends ASRInit {
   result?: Hypothesis[];
@@ -179,7 +181,7 @@ export type TTSEvent =
       };
     }
   | { type: "ERROR" }
-  | { type: "SPEAK"; value: Agenda }
+  | TTSSpeakEvent
   | { type: "TTS_STARTED"; value?: AudioBufferSourceNode }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_SET_VOICE"; value: string }
@@ -188,6 +190,8 @@ export type TTSEvent =
   | { type: "SPEAK_COMPLETE" }
   | { type: "VISEME"; value: SpeechSynthesisEventProps }
   | { type: "FURHAT_BLENDSHAPES"; value: Frame[] };
+
+export type TTSSpeakEvent = { type: "SPEAK"; value: Agenda };
 
 export type Frame = { time: number[]; params: any };
 export type Animation = { FrameIndex: number; BlendShapes: number[][] };
