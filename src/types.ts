@@ -109,7 +109,7 @@ export type ASREvent =
 export interface ASRContext extends ASRInit {
   result?: Hypothesis[];
   nluResult?: any; // TODO
-  params?: RecogniseParameters;
+  params: RecogniseParameters;
 }
 
 export interface ASRInit {
