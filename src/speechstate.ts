@@ -40,8 +40,8 @@ const speechstate = setup({
       navigator.mediaDevices
         .getUserMedia({
           audio: {
-            echoCancellation: false, // Enable echo cancellation
-            noiseSuppression: false, // Optional: Enable noise suppression
+            // echoCancellation: false, // Enable echo cancellation
+            // noiseSuppression: false, // Optional: Enable noise suppression
             autoGainControl: false, // Optional: Enable automatic gain control
           },
         })
