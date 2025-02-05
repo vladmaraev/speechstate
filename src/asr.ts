@@ -28,7 +28,7 @@ export const asrMachine = setup({
   },
   delays: {
     noinputTimeout: ({ context }) =>
-      (context.params || {}).noInputTimeout || context.asrDefaultNoInputTimeout,
+      context.params.noInputTimeout ?? context.asrDefaultNoInputTimeout,
   },
   actions: {
     raise_noinput_after_timeout: raise(
@@ -42,7 +42,7 @@ export const asrMachine = setup({
   },
   guards: {
     nlu_is_activated: ({ context }) => {
-      const nlu = (context.params || {}).nlu;
+      const nlu = context.params.nlu;
       if (nlu) {
         if (typeof nlu === "object") {
           return true;
@@ -182,6 +182,7 @@ export const asrMachine = setup({
     azureRegion: input.azureRegion,
     azureLanguageCredentials: input.azureLanguageCredentials,
     speechRecognitionEndpointId: input.speechRecognitionEndpointId,
+    params: {},
   }),
   initial: "Ready",
   on: {
@@ -213,12 +214,11 @@ export const asrMachine = setup({
           azureRegion: context.azureRegion,
           audioContext: context.audioContext,
           azureAuthorizationToken: context.azureAuthorizationToken,
-          locale: (context.params || {}).locale || context.locale,
+          locale: context.params.locale || context.locale,
           speechRecognitionEndpointId: context.speechRecognitionEndpointId,
           completeTimeout:
-            (context.params || {}).completeTimeout ||
-            context.asrDefaultCompleteTimeout,
-          hints: (context.params || {}).hints,
+            context.params.completeTimeout || context.asrDefaultCompleteTimeout,
+          hints: context.params.hints,
         }),
       },
       on: {
@@ -285,7 +285,12 @@ export const asrMachine = setup({
             },
             ApplyNoInputTimeout: {
               entry: [
-                () => console.debug("[ASR] START_NOINPUT_TIMEOUT"),
+                ({ context }) =>
+                  console.debug(
+                    "[ASR] START_NOINPUT_TIMEOUT",
+                    context.params.noInputTimeout ??
+                      context.asrDefaultNoInputTimeout,
+                  ),
                 { type: "raise_noinput_after_timeout" },
               ],
             },
