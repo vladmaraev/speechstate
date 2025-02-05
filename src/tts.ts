@@ -495,6 +495,11 @@ export const ttsMachine = setup({
                               },
                             },
                             PlayAudio: {
+                              entry: ({ context }) =>
+                                console.debug(
+                                  "[TTS] SPEAK (from cache): ",
+                                  context.utteranceFromStream,
+                                ),
                               invoke: {
                                 src: "playAudio",
                                 input: ({ context }) => ({
