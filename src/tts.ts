@@ -195,12 +195,10 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
-      console.debug("[TTS.start] with input", input);
       if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        console.debug("[TTS] SPEAK: ", input.utterance);
         const content = wrapSSML(
           input.utterance,
           input.voice,
@@ -491,6 +489,11 @@ export const ttsMachine = setup({
                               },
                             },
                             PlayAudio: {
+                              entry: ({ context }) =>
+                                console.debug(
+                                  "[TTS] SPEAK (from cache): ",
+                                  context.utteranceFromStream,
+                                ),
                               invoke: {
                                 src: "playAudio",
                                 input: ({ context }) => ({
@@ -532,6 +535,11 @@ export const ttsMachine = setup({
                         },
                         Go: {
                           id: "TtsStreamGo",
+                          entry: ({ context }) =>
+                            console.debug(
+                              "[TTS] SPEAK (no cache): ",
+                              context.utteranceFromStream,
+                            ),
                           invoke: {
                             src: "start",
                             input: ({ context }) => ({
