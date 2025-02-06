@@ -3,11 +3,6 @@ export interface AzureSpeechCredentials {
   key: string;
 }
 
-/**
- * @deprecated use `AzureSpeechCredentials` instead
- */
-export interface AzureCredentials extends AzureSpeechCredentials {}
-
 export interface AzureLanguageCredentials {
   endpoint: string;
   key: string;
@@ -157,7 +152,7 @@ export interface TTSContext extends TTSInit {
     new (text?: string): SpeechSynthesisUtterance;
   };
   agenda?: Agenda;
-  buffer?: string;
+  buffer: string;
   currentVoice?: string;
   currentLocale?: string;
   utteranceFromStream?: string;

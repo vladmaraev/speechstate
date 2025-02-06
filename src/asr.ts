@@ -199,8 +199,8 @@ export const asrMachine = setup({
       on: {
         START: {
           target: "Recognising",
-          actions: assign(({ event }) => ({
-            params: event.value,
+          actions: assign(({ context, event }) => ({
+            params: { ...context.params, ...event.value },
           })),
         },
         UPDATE_ASR_PARAMS: {

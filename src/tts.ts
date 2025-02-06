@@ -387,13 +387,13 @@ export const ttsMachine = setup({
                   initial: "BufferIdle",
                   on: {
                     STREAMING_SET_VOICE: {
-                      actions: "assignCurrentVoice",
+                      actions: { type: "assignCurrentVoice" },
                     },
                     STREAMING_SET_LOCALE: {
                       actions: "assignCurrentLocale",
                     },
                     STREAMING_SET_PERSONA: {
-                      actions: "sendParentCurrentPersona",
+                      actions: { type: "sendParentCurrentPersona" },
                     },
                   },
                   states: {

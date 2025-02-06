@@ -1,6 +1,6 @@
 export { speechstate } from "./speechstate";
 export {
-  AzureCredentials,
+  AzureSpeechCredentials,
   Settings,
   Hypothesis,
   Agenda,

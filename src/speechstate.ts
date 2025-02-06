@@ -9,7 +9,6 @@ import {
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 import { visemesMachine } from "./visemes";
-import { getToken } from "./getToken";
 
 import type {
   Settings,
@@ -17,6 +16,7 @@ import type {
   RecogniseParameters,
   SpeechStateEvent,
   TTSSpeakEvent,
+  AzureSpeechCredentials,
 } from "./types";
 
 interface SSContext {
@@ -50,15 +50,33 @@ const speechstate = setup({
         });
       return audioContext;
     }),
-    getToken: getToken,
+    getToken: fromPromise<
+      string,
+      { credentials: string | AzureSpeechCredentials }
+    >(async ({ input }) => {
+      if (typeof input.credentials === "string") {
+        return fetch(new Request(input.credentials)).then((data) =>
+          data.text(),
+        );
+      } else {
+        return fetch(
+          new Request(input.credentials.endpoint, {
+            method: "POST",
+            headers: {
+              "Ocp-Apim-Subscription-Key": input.credentials.key,
+            },
+          }),
+        ).then((data) => data.text());
+      }
+    }),
     tts: ttsMachine,
     asr: asrMachine,
     visemes: visemesMachine,
   },
   actions: {
-    spawnTTS: assign({
-      ttsRef: ({ context, spawn }) => {
-        return spawn("tts", {
+    spawnTTS: assign(({ context, spawn }) => {
+      return {
+        ttsRef: spawn("tts" as any, {
           id: "ttsRef",
           input: {
             azureAuthorizationToken: context.azureAuthorizationToken,
@@ -70,12 +88,12 @@ const speechstate = setup({
             azureRegion: context.settings.azureRegion,
             locale: context.settings.locale,
           },
-        });
-      },
+        }),
+      };
     }),
-    spawnASR: assign({
-      asrRef: ({ context, spawn }) => {
-        return spawn("asr", {
+    spawnASR: assign(({ context, spawn }) => {
+      return {
+        asrRef: spawn("asr" as any, {
           id: "asrRef",
           input: {
             azureAuthorizationToken: context.azureAuthorizationToken,
@@ -89,8 +107,8 @@ const speechstate = setup({
             speechRecognitionEndpointId:
               context.settings.speechRecognitionEndpointId,
           },
-        });
-      },
+        }),
+      };
     }),
     "tts.stop": ({ context, event }) =>
       context.ttsRef.send({
@@ -335,7 +353,7 @@ const speechstate = setup({
                     },
                     FURHAT_BLENDSHAPES: {
                       actions: [
-                        ({ event }) =>
+                        ({ event }: { event: any }) =>
                           console.debug(
                             "[SpSt] FURHAT_BLENDSHAPES",
                             event.value,
