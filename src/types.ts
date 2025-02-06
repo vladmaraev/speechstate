@@ -46,7 +46,7 @@ export interface RecogniseParameters {
   completeTimeout?: number;
   locale?: string;
   hints?: string[];
-  nlu?: boolean | AzureLanguageCredentials;
+  nlu?: boolean;
 }
 
 /** events sent to the spawned `speechstate` machine **/
@@ -67,11 +67,13 @@ type SSEventExtOut =
   | { type: "LISTEN_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
   | { type: "VISEME"; value: any }
+  | { type: "FURHAT_BLENDSHAPES"; value: Frame[] }
   | { type: "STREAMING_SET_PERSONA"; value: string };
 
 type SSEventIntIn =
   | { type: "TTS_READY" }
   | { type: "ASR_READY" }
+  | { type: "STARTSPEECH" }
   | { type: "TTS_ERROR" };
 
 export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;

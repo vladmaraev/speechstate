@@ -7,6 +7,7 @@ import {
   raise,
   cancel,
   sendTo,
+  EventObject,
 } from "xstate";
 
 import {
@@ -56,7 +57,7 @@ export const asrMachine = setup({
     },
   },
   actors: {
-    new_ponyfill: fromCallback<null, ASRPonyfillInput>(
+    new_ponyfill: fromCallback<EventObject, ASRPonyfillInput>(
       ({ sendBack, input, receive }) => {
         const { speechRecognition } = createSpeechRecognitionPonyfill(
           {
@@ -337,15 +338,15 @@ export const asrMachine = setup({
       invoke: {
         src: "nluPromise",
         input: ({ context }) => {
-          let c: AzureLanguageCredentials;
+          let c;
           typeof context.params.nlu === "boolean"
             ? (c = context.azureLanguageCredentials)
             : (c = context.params.nlu);
           return {
-            endpoint: c.endpoint,
-            key: c.key,
-            projectName: c.projectName,
-            deploymentName: c.deploymentName,
+            endpoint: c!.endpoint,
+            key: c!.key,
+            projectName: c!.projectName,
+            deploymentName: c!.deploymentName,
             query: context.result![0].utterance,
             locale: context.params.locale || context.locale,
           };

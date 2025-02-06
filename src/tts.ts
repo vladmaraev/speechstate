@@ -7,6 +7,7 @@ import {
   fromPromise,
   and,
   not,
+  EventObject,
 } from "xstate";
 
 import {
@@ -129,7 +130,7 @@ export const ttsMachine = setup({
     ),
     createEventsFromStream: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
-        const eventSource = new EventSource(input.stream);
+        const eventSource = new EventSource(input.stream!);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
           sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
@@ -146,37 +147,39 @@ export const ttsMachine = setup({
         });
       },
     ),
-    ponyfill: fromCallback<null, TTSPonyfillInput>(({ sendBack, input }) => {
-      const ponyfill = createSpeechSynthesisPonyfill({
-        audioContext: input.audioContext,
-        credentials: {
-          region: input.azureRegion,
-          authorizationToken: input.azureAuthorizationToken,
-        },
-      });
-      const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
-      const tts = speechSynthesis;
-      const ttsUtterance = SpeechSynthesisUtterance;
-      tts.onvoiceschanged = () => {
-        const voices = tts.getVoices();
-        if (voices.length > 0) {
-          console.debug("[TTS] READY");
-          sendBack({
-            type: "READY",
-            value: { wsaTTS: tts, wsaUtt: ttsUtterance },
-          });
-        } else {
-          console.error("[TTS] No voices available");
-          sendBack({ type: "ERROR" });
-        }
-      };
-    }),
+    ponyfill: fromCallback<EventObject, TTSPonyfillInput>(
+      ({ sendBack, input }) => {
+        const ponyfill = createSpeechSynthesisPonyfill({
+          audioContext: input.audioContext,
+          credentials: {
+            region: input.azureRegion,
+            authorizationToken: input.azureAuthorizationToken,
+          },
+        });
+        const { speechSynthesis, SpeechSynthesisUtterance } = ponyfill;
+        const tts = speechSynthesis;
+        const ttsUtterance = SpeechSynthesisUtterance;
+        tts.onvoiceschanged = () => {
+          const voices = tts.getVoices();
+          if (voices.length > 0) {
+            console.debug("[TTS] READY");
+            sendBack({
+              type: "READY",
+              value: { wsaTTS: tts, wsaUtt: ttsUtterance },
+            });
+          } else {
+            console.error("[TTS] No voices available");
+            sendBack({ type: "ERROR" });
+          }
+        };
+      },
+    ),
     start: fromCallback<
-      null,
+      EventObject,
       {
         utterance: string;
         voice: string;
-        ttsLexicon: string;
+        ttsLexicon?: string;
         locale: string;
         wsaUtt: ConstructableSpeechSynthesisUtterance;
         wsaTTS: SpeechSynthesis;
@@ -191,8 +194,8 @@ export const ttsMachine = setup({
           input.utterance,
           input.voice,
           input.locale,
-          input.ttsLexicon,
           1,
+          input.ttsLexicon,
         ); // todo speech rate;
         const utterance = new input.wsaUtt(content);
         utterance.onsynthesisstart = () => {
@@ -227,7 +230,7 @@ export const ttsMachine = setup({
   delays: {
     /** delay between chunks after which the filler is produced */
     FILLER_DELAY: ({ context }) => {
-      return context.agenda.fillerDelay;
+      return context.agenda!.fillerDelay || 500;
     },
     /** maximum time between chunks */
     STREAMING_TIMEOUT: 10_000,
@@ -269,11 +272,10 @@ export const ttsMachine = setup({
                   {
                     target: "BufferedSpeaker",
                     guard: ({ event }) => !!event.value.stream,
-                    actions: assign({
-                      agenda: ({ event }) =>
-                        event.value.fillerDelay
-                          ? event.value
-                          : { ...event.value, fillerDelay: 500 },
+                    actions: assign(({ event }) => {
+                      return {
+                        agenda: event.value,
+                      };
                     }),
                   },
                   {
@@ -294,7 +296,7 @@ export const ttsMachine = setup({
               invoke: {
                 id: "createEventsFromStream",
                 src: "createEventsFromStream",
-                input: ({ context }) => context.agenda,
+                input: ({ context }) => context.agenda!,
               },
               on: {
                 STOP: {
@@ -416,7 +418,7 @@ export const ttsMachine = setup({
                           always: [
                             {
                               target: "CheckCache",
-                              guard: ({ context }) => !!context.agenda.cache,
+                              guard: ({ context }) => !!context.agenda!.cache,
                             },
                             { target: "Go" },
                           ],
@@ -425,11 +427,11 @@ export const ttsMachine = setup({
                           invoke: {
                             src: "checkCache",
                             input: ({ context }) => ({
-                              cacheURL: context.agenda.cache,
-                              utterance: context.utteranceFromStream,
+                              cacheURL: context.agenda!.cache!,
+                              utterance: context.utteranceFromStream || "",
                               voice:
                                 context.currentVoice ||
-                                context.agenda.voice ||
+                                context.agenda!.voice ||
                                 context.ttsDefaultVoice,
                               locale: context.locale,
                             }),
@@ -463,11 +465,11 @@ export const ttsMachine = setup({
                                 src: "getAudioFromCache",
                                 input: ({ context }) => ({
                                   audioContext: context.audioContext,
-                                  cacheURL: context.agenda.cache,
-                                  utterance: context.utteranceFromStream,
+                                  cacheURL: context.agenda!.cache!,
+                                  utterance: context.utteranceFromStream || "",
                                   voice:
                                     context.currentVoice ||
-                                    context.agenda.voice ||
+                                    context.agenda!.voice ||
                                     context.ttsDefaultVoice,
                                   locale: context.locale,
                                 }),
@@ -491,7 +493,7 @@ export const ttsMachine = setup({
                               invoke: {
                                 src: "playAudio",
                                 input: ({ context }) => ({
-                                  audioBuffer: context.audioBuffer,
+                                  audioBuffer: context.audioBuffer!,
                                   audioContext: context.audioContext,
                                 }),
                               },
@@ -537,16 +539,16 @@ export const ttsMachine = setup({
                           invoke: {
                             src: "start",
                             input: ({ context }) => ({
-                              wsaTTS: context.wsaTTS,
-                              wsaUtt: context.wsaUtt,
+                              wsaTTS: context.wsaTTS!,
+                              wsaUtt: context.wsaUtt!,
                               ttsLexicon: context.ttsLexicon,
-                              visemes: context.agenda.visemes,
+                              visemes: context.agenda!.visemes,
                               voice:
                                 context.currentVoice ||
-                                context.agenda.voice ||
+                                context.agenda!.voice ||
                                 context.ttsDefaultVoice,
                               locale: context.locale,
-                              utterance: context.utteranceFromStream,
+                              utterance: context.utteranceFromStream || "",
                             }),
                           },
                           on: {
@@ -612,7 +614,7 @@ export const ttsMachine = setup({
                     src: "getAudio",
                     input: ({ context }) => ({
                       audioContext: context.audioContext,
-                      audioURL: context.agenda.audioURL,
+                      audioURL: context.agenda!.audioURL!,
                     }),
                     onDone: {
                       target: "PlayAudio",
@@ -635,7 +637,7 @@ export const ttsMachine = setup({
                     src: "playAudio",
                     input: ({ context }) => ({
                       audioContext: context.audioContext,
-                      audioBuffer: context.audioBuffer,
+                      audioBuffer: context.audioBuffer!,
                     }),
                   },
                   on: {
@@ -681,14 +683,14 @@ export const ttsMachine = setup({
                   invoke: {
                     src: "start",
                     input: ({ context }) => ({
-                      wsaTTS: context.wsaTTS,
-                      wsaUtt: context.wsaUtt,
+                      wsaTTS: context.wsaTTS!,
+                      wsaUtt: context.wsaUtt!,
                       ttsLexicon: context.ttsLexicon,
-                      voice: context.agenda.voice || context.ttsDefaultVoice,
-                      visemes: context.agenda.visemes,
+                      voice: context.agenda!.voice || context.ttsDefaultVoice,
+                      visemes: context.agenda!.visemes,
                       // streamURL: context.agenda.streamURL,
                       locale: context.locale,
-                      utterance: context.agenda.utterance,
+                      utterance: context.agenda!.utterance,
                     }),
                   },
                   on: {
@@ -746,8 +748,8 @@ const wrapSSML = (
   text: string,
   voice: string,
   locale: string,
-  lexicon: string,
   speechRate: number,
+  lexicon?: string,
 ): string => {
   let content = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US"><voice name="${voice}"><lang xml:lang="${locale}">`;
   if (lexicon) {
