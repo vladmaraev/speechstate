@@ -92,6 +92,11 @@ const speechstate = setup({
         });
       },
     }),
+    "tts.stop": ({ context, event }) =>
+      context.ttsRef.send({
+        type: "STOP",
+        value: (event as any).value,
+      }),
   },
   delays: {
     NEW_TOKEN_INTERVAL: ({ context }) => {
@@ -341,6 +346,16 @@ const speechstate = setup({
                         })),
                       ],
                     },
+                    UPDATE_ASR_PARAMS: {
+                      actions: [
+                        () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMS"),
+                        ({ context, event }) =>
+                          context.asrRef.send({
+                            type: "UPDATE_ASR_PARAMS",
+                            value: event.value,
+                          }),
+                      ],
+                    },
                     SPEAK_COMPLETE: [
                       {
                         target: "Recognising",
@@ -429,11 +444,7 @@ const speechstate = setup({
                               console.debug(
                                 "[ASR→SpSt] STARTSPEECH (barge-in)",
                               ),
-                            ({ context, event }) =>
-                              context.ttsRef.send({
-                                type: "STOP",
-                                value: (event as any).value,
-                              }),
+                            { type: "tts.stop" },
                           ],
                         },
                         CONTROL: {

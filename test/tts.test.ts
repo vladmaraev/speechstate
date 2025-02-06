@@ -284,7 +284,7 @@ describe("Synthesis test", async () => {
       value: {
         utterance: "Hello! You can interrupt me whenever you like.",
         voice: "en-US-EmmaMultilingualNeural",
-        bargeIn: { noInputTimeout: 10_000 },
+        bargeIn: { noInputTimeout: 0 },
       },
     });
     const snapshot = await waitForView(actor, "listening", 5000);

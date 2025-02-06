@@ -203,6 +203,15 @@ export const asrMachine = setup({
             params: event.value,
           })),
         },
+        UPDATE_ASR_PARAMS: {
+          actions: [
+            ({ event }) =>
+              console.debug("[ASR] UPDATE_ASR_PARAMS", event.value),
+            assign(({ event }) => ({
+              params: event.value,
+            })),
+          ],
+        },
       },
     },
     Recognising: {

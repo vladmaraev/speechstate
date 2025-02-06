@@ -62,7 +62,8 @@ type SSEventExtIn =
   | { type: "CONTROL" }
   | { type: "STOP" }
   | TTSSpeakEvent
-  | { type: "LISTEN"; value: RecogniseParameters };
+  | { type: "LISTEN"; value: RecogniseParameters }
+  | { type: "UPDATE_ASR_PARAMS"; value: RecogniseParameters };
 
 type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
@@ -84,10 +85,7 @@ export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;
 export type SpeechStateEvent = SSEventIntIn | SpeechStateExternalEvent;
 
 export interface MySpeechRecognition extends SpeechRecognition {
-  new ();
-}
-export interface MySpeechGrammarList extends SpeechGrammarList {
-  new ();
+  new (): MySpeechRecognition;
 }
 
 export type ASREvent =
@@ -100,6 +98,7 @@ export type ASREvent =
       type: "START";
       value?: RecogniseParameters;
     }
+  | { type: "UPDATE_ASR_PARAMS"; value: RecogniseParameters }
   | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
   | { type: "STARTSPEECH" }
   | { type: "RECOGNISED"; value: Hypothesis[] }
