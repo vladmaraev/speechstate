@@ -45,27 +45,15 @@ export const ttsMachine = setup({
           context.buffer.substring(spaceIndex),
       };
     }),
-    assignCurrentVoice: assign(
-      ({
-        event,
-      }: {
-        event: { type: "STREAMING_SET_VOICE"; value: string };
-      }) => {
-        return {
-          currentVoice: event.value,
-        };
-      },
-    ),
-    sendParentCurrentPersona: sendParent(
-      ({
-        event,
-      }: {
-        event: { type: "STREAMING_SET_PERSONA"; value: string };
-      }) => ({
-        type: "STREAMING_SET_PERSONA",
-        value: event.value,
-      }),
-    ),
+    assignCurrentVoice: assign(({ event }) => {
+      return {
+        currentVoice: (event as any).value,
+      };
+    }),
+    sendParentCurrentPersona: sendParent(({ event }) => ({
+      type: "STREAMING_SET_PERSONA",
+      value: (event as any).value,
+    })),
   },
   actors: {
     checkCache: fromPromise<
@@ -195,12 +183,10 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
-      console.debug("[TTS.start] with input", input);
       if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        console.debug("[TTS] SPEAK: ", input.utterance);
         const content = wrapSSML(
           input.utterance,
           input.voice,
@@ -317,10 +303,10 @@ export const ttsMachine = setup({
                   initial: "BufferIdle",
                   on: {
                     STREAMING_SET_VOICE: {
-                      actions: "assignCurrentVoice",
+                      actions: { type: "assignCurrentVoice" },
                     },
                     STREAMING_SET_PERSONA: {
-                      actions: "sendParentCurrentPersona",
+                      actions: { type: "sendParentCurrentPersona" },
                     },
                   },
                   states: {
@@ -491,6 +477,11 @@ export const ttsMachine = setup({
                               },
                             },
                             PlayAudio: {
+                              entry: ({ context }) =>
+                                console.debug(
+                                  "[TTS] SPEAK (from cache): ",
+                                  context.utteranceFromStream,
+                                ),
                               invoke: {
                                 src: "playAudio",
                                 input: ({ context }) => ({
@@ -532,6 +523,11 @@ export const ttsMachine = setup({
                         },
                         Go: {
                           id: "TtsStreamGo",
+                          entry: ({ context }) =>
+                            console.debug(
+                              "[TTS] SPEAK (no cache): ",
+                              context.utteranceFromStream,
+                            ),
                           invoke: {
                             src: "start",
                             input: ({ context }) => ({

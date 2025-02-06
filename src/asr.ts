@@ -30,7 +30,7 @@ export const asrMachine = setup({
   },
   delays: {
     noinputTimeout: ({ context }) =>
-      (context.params || {}).noInputTimeout || context.asrDefaultNoInputTimeout,
+      context.params.noInputTimeout ?? context.asrDefaultNoInputTimeout,
   },
   actions: {
     raise_noinput_after_timeout: raise(
@@ -44,7 +44,7 @@ export const asrMachine = setup({
   },
   guards: {
     nlu_is_activated: ({ context }) => {
-      const nlu = (context.params || {}).nlu;
+      const nlu = context.params.nlu;
       if (nlu) {
         if (typeof nlu === "object") {
           return true;
@@ -116,7 +116,7 @@ export const asrMachine = setup({
         };
         console.debug("[ASR] READY", asr);
         sendBack({ type: "READY", value: asr });
-        receive((event: { type: "STOP" }) => {
+        receive((event: any) => {
           if (event.type === "STOP") {
             console.log("[asr.callback] Receiving STOP");
             asr.abort();
@@ -169,6 +169,7 @@ export const asrMachine = setup({
     azureRegion: input.azureRegion,
     azureLanguageCredentials: input.azureLanguageCredentials,
     speechRecognitionEndpointId: input.speechRecognitionEndpointId,
+    params: {},
   }),
   initial: "Ready",
   on: {
@@ -185,9 +186,18 @@ export const asrMachine = setup({
       on: {
         START: {
           target: "Recognising",
-          actions: assign(({ event }) => ({
-            params: event.value,
+          actions: assign(({ context, event }) => ({
+            params: { ...context.params, ...event.value },
           })),
+        },
+        UPDATE_ASR_PARAMS: {
+          actions: [
+            ({ event }) =>
+              console.debug("[ASR] UPDATE_ASR_PARAMS", event.value),
+            assign(({ event }) => ({
+              params: event.value,
+            })),
+          ],
         },
       },
     },
@@ -200,12 +210,11 @@ export const asrMachine = setup({
           azureRegion: context.azureRegion,
           audioContext: context.audioContext,
           azureAuthorizationToken: context.azureAuthorizationToken,
-          locale: (context.params || {}).locale || context.locale,
+          locale: context.params.locale || context.locale,
           speechRecognitionEndpointId: context.speechRecognitionEndpointId,
           completeTimeout:
-            (context.params || {}).completeTimeout ||
-            context.asrDefaultCompleteTimeout,
-          hints: (context.params || {}).hints,
+            context.params.completeTimeout || context.asrDefaultCompleteTimeout,
+          hints: context.params.hints,
         }),
       },
       on: {
@@ -234,11 +243,30 @@ export const asrMachine = setup({
           },
         },
         NoInput: {
-          entry: { type: "raise_noinput_after_timeout" },
+          initial: "Wait",
           on: {
             STARTSPEECH: {
               target: "InProgress",
-              actions: cancel("completeTimeout"),
+              actions: [
+                sendParent({ type: "STARTSPEECH" }),
+                cancel("completeTimeout"),
+              ],
+            },
+          },
+          states: {
+            Wait: {
+              on: { START_NOINPUT_TIMEOUT: "ApplyNoInputTimeout" },
+            },
+            ApplyNoInputTimeout: {
+              entry: [
+                ({ context }) =>
+                  console.debug(
+                    "[ASR] START_NOINPUT_TIMEOUT",
+                    context.params.noInputTimeout ??
+                      context.asrDefaultNoInputTimeout,
+                  ),
+                { type: "raise_noinput_after_timeout" },
+              ],
             },
           },
           exit: { type: "cancel_noinput_timeout" },
@@ -309,17 +337,17 @@ export const asrMachine = setup({
       invoke: {
         src: "nluPromise",
         input: ({ context }) => {
-          let c: AzureLanguageCredentials;
+          let c;
           typeof context.params.nlu === "boolean"
             ? (c = context.azureLanguageCredentials)
             : (c = context.params.nlu);
           return {
-            endpoint: c.endpoint,
-            key: c.key,
-            projectName: c.projectName,
-            deploymentName: c.deploymentName,
-            query: context.result[0].utterance,
-            locale: (context.params || {}).locale || context.locale,
+            endpoint: c!.endpoint,
+            key: c!.key,
+            projectName: c!.projectName,
+            deploymentName: c!.deploymentName,
+            query: context.result![0].utterance,
+            locale: context.params.locale || context.locale,
           };
         },
         onDone: [
