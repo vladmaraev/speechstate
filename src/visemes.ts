@@ -1,4 +1,4 @@
-import { setup, assign, fromPromise, sendParent, stopChild } from "xstate";
+import { setup, sendParent } from "xstate";
 import { Frame, Animation } from "./types";
 
 const blendShapeToFrameParams = (blendShapes: number[]) => {
@@ -68,7 +68,7 @@ const animationToFrames = (animation: Animation): Frame[] => {
   return [...frames];
 };
 
-const blendShapeMap = {
+const blendShapeMap: { [index: number]: string } = {
   1: "EYE_BLINK_LEFT",
   2: "EYE_LOOK_DOWN_LEFT",
   3: "EYE_LOOK_IN_LEFT",

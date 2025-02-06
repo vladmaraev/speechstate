@@ -69,11 +69,13 @@ type SSEventExtOut =
   | { type: "LISTEN_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
   | { type: "VISEME"; value: any }
+  | { type: "FURHAT_BLENDSHAPES"; value: Frame[] }
   | { type: "STREAMING_SET_PERSONA"; value: string };
 
 type SSEventIntIn =
   | { type: "TTS_READY" }
   | { type: "ASR_READY" }
+  | { type: "STARTSPEECH" }
   | { type: "TTS_ERROR" };
 
 export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;

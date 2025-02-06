@@ -5,6 +5,8 @@ import {
   sendParent,
   stopChild,
   sendTo,
+  AnyActorRef,
+  assertEvent,
 } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
@@ -22,15 +24,14 @@ import type {
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
-  asrRef?: any;
-  ttsRef?: any;
+  asrRef?: AnyActorRef;
+  ttsRef?: AnyActorRef;
   azureAuthorizationToken?: string;
   bargeIn: false | RecogniseParameters;
 }
 
 const speechstate = setup({
   types: {} as {
-    input: Settings;
     context: SSContext;
     events: SpeechStateEvent;
   },
@@ -110,10 +111,9 @@ const speechstate = setup({
         }),
       };
     }),
-    "tts.stop": ({ context, event }) =>
-      context.ttsRef.send({
+    "tts.stop": ({ context }) =>
+      context.ttsRef!.send({
         type: "STOP",
-        value: (event as any).value,
       }),
   },
   delays: {
@@ -122,7 +122,7 @@ const speechstate = setup({
     },
   },
 }).createMachine({
-  context: ({ input }) => ({
+  context: ({ input }: any) => ({
     settings: input,
     bargeIn: false,
   }),
@@ -221,12 +221,12 @@ const speechstate = setup({
                       return { azureAuthorizationToken: event.output };
                     }),
                     ({ context, event }) =>
-                      context.ttsRef.send({
+                      context.ttsRef!.send({
                         type: "NEW_TOKEN",
                         value: event.output,
                       }),
                     ({ context, event }) =>
-                      context.asrRef.send({
+                      context.asrRef!.send({
                         type: "NEW_TOKEN",
                         value: event.output,
                       }),
@@ -335,12 +335,12 @@ const speechstate = setup({
                       actions: [
                         ({}) => console.debug("[SpSt→TTS] STOP"),
                         ({ context }) =>
-                          context.ttsRef.send({
+                          context.ttsRef!.send({
                             type: "STOP",
                           }),
                         ({}) => console.debug("[SpSt→ASR] STOP"),
                         ({ context }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "STOP",
                           }),
                       ],
@@ -368,7 +368,7 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMS"),
                         ({ context, event }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "UPDATE_ASR_PARAMS",
                             value: event.value,
                           }),
@@ -385,7 +385,7 @@ const speechstate = setup({
                             ),
                           sendParent({ type: "SPEAK_COMPLETE" }),
                           ({ context }) =>
-                            context.asrRef.send({
+                            context.asrRef!.send({
                               type: "START_NOINPUT_TIMEOUT",
                             }),
                         ],
@@ -413,7 +413,7 @@ const speechstate = setup({
                             (event as TTSSpeakEvent).value,
                           ),
                         ({ context, event }) =>
-                          context.ttsRef.send({
+                          context.ttsRef!.send({
                             type: "SPEAK",
                             value: (event as TTSSpeakEvent).value,
                           }),
@@ -434,7 +434,7 @@ const speechstate = setup({
                       entry: [
                         () => console.debug("[SpSt→ASR] START"),
                         ({ context }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "START",
                             value: context.bargeIn,
                           }),
@@ -470,7 +470,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
-                              context.ttsRef.send({
+                              context.ttsRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -486,7 +486,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
-                              context.ttsRef.send({
+                              context.ttsRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -499,11 +499,13 @@ const speechstate = setup({
                   meta: { view: "idle" },
                   entry: [
                     () => console.debug("[SpSt→ASR] START"),
-                    ({ context, event }) =>
-                      context.asrRef.send({
+                    ({ context, event }) => {
+                      assertEvent(event, "LISTEN");
+                      context.asrRef!.send({
                         type: "START",
-                        value: (event as any).value,
-                      }),
+                        value: event.value,
+                      });
+                    },
                   ],
                   on: {
                     ASR_STARTED: {
@@ -512,7 +514,7 @@ const speechstate = setup({
                         () => console.debug("[ASR→SpSt] ASR_STARTED"),
                         sendParent({ type: "ASR_STARTED" }),
                         ({ context }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "START_NOINPUT_TIMEOUT",
                           }),
                       ],
@@ -528,7 +530,7 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[SpSt→ASR] STOP"),
                         ({ context }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "STOP",
                           }),
                       ],
@@ -565,7 +567,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→ASR] CONTROL"),
                             ({ context }) =>
-                              context.asrRef.send({
+                              context.asrRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -580,7 +582,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→ASR] CONTROL"),
                             ({ context }) =>
-                              context.asrRef.send({
+                              context.asrRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
