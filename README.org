@@ -11,15 +11,9 @@ Free browser-based spoken dialogue system. Based on [[https://github.com/stately
 #+begin_src typescript
   import { speechstate } from "speechstate";
 
-  // start with this action in your state chart
-  assign({
-      spstRef: ({ spawn }) => {
-          return spawn(speechstate, {
-              input: {
-                  settings: ...
-              },
-          });
-      },
+  // define your the context of your statechart as follows
+  context: ({ spawn }) => ({
+    spstRef: spawn(speechstate, { input: settings }),
   }),
 #+end_src
 
@@ -64,7 +58,8 @@ Example action:
 *** SpeechState to DM
 - ~{ type: "ASRTTS_READY" }~  
 - ~{ type: "ASR_NOINPUT" }~
-- ~{ type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }~  
+- ~{ type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }~
+- ~{ type: "LISTEN_COMPLETE" }~
 - ~{ type: "SPEAK_COMPLETE" }~ 
 - ~{ type: "ASR_STARTED" }~ 
 - ~{ type: "TTS_STARTED" }~ 
