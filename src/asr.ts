@@ -116,7 +116,7 @@ export const asrMachine = setup({
         };
         console.debug("[ASR] READY", asr);
         sendBack({ type: "READY", value: asr });
-        receive((event: { type: "STOP" }) => {
+        receive((event: any) => {
           if (event.type === "STOP") {
             console.log("[asr.callback] Receiving STOP");
             asr.abort();
@@ -189,6 +189,15 @@ export const asrMachine = setup({
           actions: assign(({ event }) => ({
             params: event.value,
           })),
+        },
+        UPDATE_ASR_PARAMS: {
+          actions: [
+            ({ event }) =>
+              console.debug("[ASR] UPDATE_ASR_PARAMS", event.value),
+            assign(({ event }) => ({
+              params: event.value,
+            })),
+          ],
         },
       },
     },
@@ -337,7 +346,7 @@ export const asrMachine = setup({
             key: c.key,
             projectName: c.projectName,
             deploymentName: c.deploymentName,
-            query: context.result[0].utterance,
+            query: context.result![0].utterance,
             locale: context.params.locale || context.locale,
           };
         },
