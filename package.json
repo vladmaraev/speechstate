@@ -11,7 +11,7 @@
   "dependencies": {
     "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.16",
     "web-speech-cognitive-services": "^8.1.1",
-    "xstate": "^5.17.4"
+    "xstate": "^5.19.2"
   },
   "scripts": {
     "dev": "vite",
