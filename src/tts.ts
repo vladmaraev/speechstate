@@ -45,27 +45,15 @@ export const ttsMachine = setup({
           context.buffer.substring(spaceIndex),
       };
     }),
-    assignCurrentVoice: assign(
-      ({
-        event,
-      }: {
-        event: { type: "STREAMING_SET_VOICE"; value: string };
-      }) => {
-        return {
-          currentVoice: event.value,
-        };
-      },
-    ),
-    sendParentCurrentPersona: sendParent(
-      ({
-        event,
-      }: {
-        event: { type: "STREAMING_SET_PERSONA"; value: string };
-      }) => ({
-        type: "STREAMING_SET_PERSONA",
-        value: event.value,
-      }),
-    ),
+    assignCurrentVoice: assign(({ event }) => {
+      return {
+        currentVoice: (event as any).value,
+      };
+    }),
+    sendParentCurrentPersona: sendParent(({ event }) => ({
+      type: "STREAMING_SET_PERSONA",
+      value: (event as any).value,
+    })),
   },
   actors: {
     checkCache: fromPromise<
@@ -318,10 +306,10 @@ export const ttsMachine = setup({
                   initial: "BufferIdle",
                   on: {
                     STREAMING_SET_VOICE: {
-                      actions: "assignCurrentVoice",
+                      actions: { type: "assignCurrentVoice" },
                     },
                     STREAMING_SET_PERSONA: {
-                      actions: "sendParentCurrentPersona",
+                      actions: { type: "sendParentCurrentPersona" },
                     },
                   },
                   states: {
