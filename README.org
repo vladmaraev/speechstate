@@ -59,7 +59,7 @@ Example action:
 - ~{ type: "ASRTTS_READY" }~  
 - ~{ type: "ASR_NOINPUT" }~
 - ~{ type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }~
-- ~{ type: "LISTEN_COMPLETE" }~  
+- ~{ type: "LISTEN_COMPLETE" }~
 - ~{ type: "SPEAK_COMPLETE" }~ 
 - ~{ type: "ASR_STARTED" }~ 
 - ~{ type: "TTS_STARTED" }~ 
