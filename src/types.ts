@@ -5,11 +5,6 @@ export interface AzureSpeechCredentials {
   key: string;
 }
 
-/**
- * @deprecated use `AzureSpeechCredentials` instead
- */
-export interface AzureCredentials extends AzureSpeechCredentials {}
-
 export interface AzureLanguageCredentials {
   endpoint: string;
   key: string;
@@ -137,7 +132,7 @@ export interface ASRPonyfillInput extends RecogniseParameters {
 
 export interface ConstructableSpeechSynthesisUtterance
   extends SpeechSynthesisUtterance {
-  new (s: string): ConstructableSpeechSynthesisUtterance;
+  new (s: string): any;
 }
 
 export interface TTSInit {
@@ -154,7 +149,7 @@ export interface TTSContext extends TTSInit {
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: ConstructableSpeechSynthesisUtterance;
   agenda?: Agenda;
-  buffer?: string;
+  buffer: string;
   currentVoice?: string;
   utteranceFromStream?: string;
   audioBuffer?: AudioBuffer;
