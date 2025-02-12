@@ -195,12 +195,10 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
-      console.debug("[TTS.start] with input", input);
       if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        console.debug("[TTS] SPEAK: ", input.utterance);
         const content = wrapSSML(
           input.utterance,
           input.voice,
@@ -239,9 +237,12 @@ export const ttsMachine = setup({
     },
   },
   delays: {
+    /** delay between chunks after which the filler is produced */
     FILLER_DELAY: ({ context }) => {
       return context.agenda.fillerDelay;
     },
+    /** maximum time between chunks */
+    STREAMING_TIMEOUT: 10_000,
   },
 }).createMachine({
   id: "tts",
@@ -335,17 +336,20 @@ export const ttsMachine = setup({
                     Buffering: {
                       id: "Buffering",
                       on: {
-                        STREAMING_CHUNK: [
-                          {
-                            target: "Buffering",
-                            reenter: true,
-                          },
-                        ],
-                        STREAMING_DONE: [
-                          {
-                            target: "BufferingDone",
-                          },
-                        ],
+                        STREAMING_CHUNK: {
+                          target: "Buffering",
+                          reenter: true,
+                        },
+                        STREAMING_DONE: "BufferingDone",
+                      },
+                      after: {
+                        STREAMING_TIMEOUT: {
+                          target: "BufferingDone",
+                          actions: () =>
+                            console.error(
+                              "[TTS] timeout, STREAMING_DONE event was not received from SSE",
+                            ),
+                        },
                       },
                       entry: [
                         assign({
@@ -532,6 +536,11 @@ export const ttsMachine = setup({
                         },
                         Go: {
                           id: "TtsStreamGo",
+                          entry: ({ context }) =>
+                            console.debug(
+                              "[TTS] SPEAK (not cached): ",
+                              context.utteranceFromStream,
+                            ),
                           invoke: {
                             src: "start",
                             input: ({ context }) => ({
@@ -624,6 +633,11 @@ export const ttsMachine = setup({
                   },
                 },
                 PlayAudio: {
+                  entry: ({ context }) =>
+                    console.debug(
+                      "[TTS] SPEAK (cached): ",
+                      context.utteranceFromStream,
+                    ),
                   invoke: {
                     src: "playAudio",
                     input: ({ context }) => ({
@@ -669,6 +683,8 @@ export const ttsMachine = setup({
               exit: sendParent({ type: "SPEAK_COMPLETE" }),
               states: {
                 Go: {
+                  entry: ({ context }) =>
+                    console.debug("[TTS] SPEAK:", context.utteranceFromStream),
                   invoke: {
                     src: "start",
                     input: ({ context }) => ({
