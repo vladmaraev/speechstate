@@ -171,4 +171,14 @@ describe("Synthesis test", async () => {
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
   });
+
+  test.only("synthesise from stream, go to idle state after timeout", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/sse/noend" },
+    });
+    await waitForView(actor, "speaking", 1000);
+    const snapshot = await waitForView(actor, "idle", 15_000);
+    expect(snapshot).toBeTruthy();
+  });
 });
