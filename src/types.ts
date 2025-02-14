@@ -5,11 +5,6 @@ export interface AzureSpeechCredentials {
   key: string;
 }
 
-/**
- * @deprecated use `AzureSpeechCredentials` instead
- */
-export interface AzureCredentials extends AzureSpeechCredentials {}
-
 export interface AzureLanguageCredentials {
   endpoint: string;
   key: string;
@@ -19,7 +14,7 @@ export interface AzureLanguageCredentials {
 
 export interface Settings {
   locale?: string;
-  azureCredentials: string | AzureCredentials | AzureSpeechCredentials;
+  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
@@ -32,6 +27,7 @@ export interface Settings {
 
 export interface Agenda {
   utterance: string;
+  bargeIn: false | RecogniseParameters;
   voice?: string;
   stream?: string;
   cache?: string;
@@ -50,7 +46,7 @@ export interface RecogniseParameters {
   completeTimeout?: number;
   locale?: string;
   hints?: string[];
-  nlu?: boolean | AzureLanguageCredentials;
+  nlu?: boolean;
 }
 
 /** events sent to the spawned `speechstate` machine **/
@@ -58,8 +54,9 @@ type SSEventExtIn =
   | { type: "PREPARE" }
   | { type: "CONTROL" }
   | { type: "STOP" }
-  | { type: "SPEAK"; value: Agenda }
-  | { type: "LISTEN"; value: RecogniseParameters };
+  | TTSSpeakEvent
+  | { type: "LISTEN"; value: RecogniseParameters }
+  | { type: "UPDATE_ASR_PARAMS"; value: RecogniseParameters };
 
 type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
@@ -70,21 +67,20 @@ type SSEventExtOut =
   | { type: "LISTEN_COMPLETE" }
   | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
   | { type: "VISEME"; value: any }
+  | { type: "FURHAT_BLENDSHAPES"; value: Frame[] }
   | { type: "STREAMING_SET_PERSONA"; value: string };
 
 type SSEventIntIn =
   | { type: "TTS_READY" }
   | { type: "ASR_READY" }
+  | { type: "STARTSPEECH" }
   | { type: "TTS_ERROR" };
 
 export type SpeechStateExternalEvent = SSEventExtIn | SSEventExtOut;
 export type SpeechStateEvent = SSEventIntIn | SpeechStateExternalEvent;
 
 export interface MySpeechRecognition extends SpeechRecognition {
-  new ();
-}
-export interface MySpeechGrammarList extends SpeechGrammarList {
-  new ();
+  new (): MySpeechRecognition;
 }
 
 export type ASREvent =
@@ -97,17 +93,19 @@ export type ASREvent =
       type: "START";
       value?: RecogniseParameters;
     }
+  | { type: "UPDATE_ASR_PARAMS"; value: RecogniseParameters }
   | { type: "STARTED"; value: { wsaASRinstance: MySpeechRecognition } }
   | { type: "STARTSPEECH" }
   | { type: "RECOGNISED"; value: Hypothesis[] }
   | { type: "STOP" }
   | { type: "LISTEN_COMPLETE" }
-  | { type: "RESULT"; value: Hypothesis[] };
+  | { type: "RESULT"; value: Hypothesis[] }
+  | { type: "START_NOINPUT_TIMEOUT" };
 
 export interface ASRContext extends ASRInit {
   result?: Hypothesis[];
   nluResult?: any; // TODO
-  params?: RecogniseParameters;
+  params: RecogniseParameters;
 }
 
 export interface ASRInit {
@@ -136,7 +134,7 @@ export interface ASRPonyfillInput extends RecogniseParameters {
 
 export interface ConstructableSpeechSynthesisUtterance
   extends SpeechSynthesisUtterance {
-  new (s: string);
+  new (s: string): any;
 }
 
 export interface TTSInit {
@@ -153,7 +151,7 @@ export interface TTSContext extends TTSInit {
   wsaVoice?: SpeechSynthesisVoice;
   wsaUtt?: ConstructableSpeechSynthesisUtterance;
   agenda?: Agenda;
-  buffer?: string;
+  buffer: string;
   currentVoice?: string;
   utteranceFromStream?: string;
   audioBuffer?: AudioBuffer;
@@ -179,7 +177,7 @@ export type TTSEvent =
       };
     }
   | { type: "ERROR" }
-  | { type: "SPEAK"; value: Agenda }
+  | TTSSpeakEvent
   | { type: "TTS_STARTED"; value?: AudioBufferSourceNode }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_SET_VOICE"; value: string }
@@ -188,6 +186,8 @@ export type TTSEvent =
   | { type: "SPEAK_COMPLETE" }
   | { type: "VISEME"; value: SpeechSynthesisEventProps }
   | { type: "FURHAT_BLENDSHAPES"; value: Frame[] };
+
+export type TTSSpeakEvent = { type: "SPEAK"; value: Agenda };
 
 export type Frame = { time: number[]; params: any };
 export type Animation = { FrameIndex: number; BlendShapes: number[][] };

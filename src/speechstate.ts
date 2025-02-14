@@ -5,31 +5,33 @@ import {
   sendParent,
   stopChild,
   sendTo,
+  AnyActorRef,
+  assertEvent,
 } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
 import { visemesMachine } from "./visemes";
-import { getToken } from "./getToken";
 
 import type {
   Settings,
-  Agenda,
   Hypothesis,
   RecogniseParameters,
   SpeechStateEvent,
+  TTSSpeakEvent,
+  AzureSpeechCredentials,
 } from "./types";
 
 interface SSContext {
   settings: Settings;
   audioContext?: AudioContext;
-  asrRef?: any;
-  ttsRef?: any;
+  asrRef?: AnyActorRef;
+  ttsRef?: AnyActorRef;
   azureAuthorizationToken?: string;
+  bargeIn: false | RecogniseParameters;
 }
 
 const speechstate = setup({
   types: {} as {
-    input: Settings;
     context: SSContext;
     events: SpeechStateEvent;
   },
@@ -37,21 +39,45 @@ const speechstate = setup({
     audioContext: fromPromise<AudioContext, void>(async () => {
       const audioContext = new AudioContext();
       navigator.mediaDevices
-        .getUserMedia({ audio: true })
+        .getUserMedia({
+          audio: {
+            // echoCancellation: false, // Enable echo cancellation
+            // noiseSuppression: false, // Optional: Enable noise suppression
+            autoGainControl: false, // Optional: Enable automatic gain control
+          },
+        })
         .then(function (stream) {
           audioContext.createMediaStreamSource(stream);
         });
       return audioContext;
     }),
-    getToken: getToken,
+    getToken: fromPromise<
+      string,
+      { credentials: string | AzureSpeechCredentials }
+    >(async ({ input }) => {
+      if (typeof input.credentials === "string") {
+        return fetch(new Request(input.credentials)).then((data) =>
+          data.text(),
+        );
+      } else {
+        return fetch(
+          new Request(input.credentials.endpoint, {
+            method: "POST",
+            headers: {
+              "Ocp-Apim-Subscription-Key": input.credentials.key,
+            },
+          }),
+        ).then((data) => data.text());
+      }
+    }),
     tts: ttsMachine,
     asr: asrMachine,
     visemes: visemesMachine,
   },
   actions: {
-    spawnTTS: assign({
-      ttsRef: ({ context, spawn }) => {
-        return spawn("tts", {
+    spawnTTS: assign(({ context, spawn }) => {
+      return {
+        ttsRef: spawn("tts" as any, {
           id: "ttsRef",
           input: {
             azureAuthorizationToken: context.azureAuthorizationToken,
@@ -61,12 +87,12 @@ const speechstate = setup({
             azureRegion: context.settings.azureRegion,
             locale: context.settings.locale,
           },
-        });
-      },
+        }),
+      };
     }),
-    spawnASR: assign({
-      asrRef: ({ context, spawn }) => {
-        return spawn("asr", {
+    spawnASR: assign(({ context, spawn }) => {
+      return {
+        asrRef: spawn("asr" as any, {
           id: "asrRef",
           input: {
             azureAuthorizationToken: context.azureAuthorizationToken,
@@ -80,9 +106,13 @@ const speechstate = setup({
             speechRecognitionEndpointId:
               context.settings.speechRecognitionEndpointId,
           },
-        });
-      },
+        }),
+      };
     }),
+    "tts.stop": ({ context }) =>
+      context.ttsRef!.send({
+        type: "STOP",
+      }),
   },
   delays: {
     NEW_TOKEN_INTERVAL: ({ context }) => {
@@ -90,8 +120,9 @@ const speechstate = setup({
     },
   },
 }).createMachine({
-  context: ({ input }) => ({
+  context: ({ input }: any) => ({
     settings: input,
+    bargeIn: false,
   }),
   id: "speechstate",
   initial: "Active",
@@ -174,12 +205,12 @@ const speechstate = setup({
                       return { azureAuthorizationToken: event.output };
                     }),
                     ({ context, event }) =>
-                      context.ttsRef.send({
+                      context.ttsRef!.send({
                         type: "NEW_TOKEN",
                         value: event.output,
                       }),
                     ({ context, event }) =>
-                      context.asrRef.send({
+                      context.asrRef!.send({
                         type: "NEW_TOKEN",
                         value: event.output,
                       }),
@@ -235,23 +266,6 @@ const speechstate = setup({
               on: {
                 TTS_READY: {
                   actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-                  target: "PreReady",
-                },
-                ASR_READY: {
-                  actions: () => console.debug("[ASR→SpSt] ASR_READY"),
-                  target: "PreReady",
-                },
-              },
-            },
-            PreReady: {
-              meta: { view: "not-ready" },
-              on: {
-                TTS_READY: {
-                  actions: () => console.debug("[TTS→SpSt] TTS_READY"),
-                  target: "Ready",
-                },
-                ASR_READY: {
-                  actions: () => console.debug("[ASR→SpSt] ASR_READY"),
                   target: "Ready",
                 },
               },
@@ -262,6 +276,23 @@ const speechstate = setup({
                 () => console.debug("[SpSt] All ready"),
                 sendParent({ type: "ASRTTS_READY" }),
               ],
+              on: {
+                RECOGNISED: {
+                  actions: [
+                    ({ event }) =>
+                      console.debug(
+                        "[ASR→SpSt] RECOGNISED",
+                        (event as any).value,
+                        (event as any).nluValue,
+                      ),
+                    sendParent(({ event }) => ({
+                      type: "RECOGNISED",
+                      value: (event as any).value,
+                      nluValue: (event as any).nluValue,
+                    })),
+                  ],
+                },
+              },
               states: {
                 Idle: {
                   meta: { view: "idle" },
@@ -287,24 +318,25 @@ const speechstate = setup({
                       actions: [
                         ({}) => console.debug("[SpSt→TTS] STOP"),
                         ({ context }) =>
-                          context.ttsRef.send({
+                          context.ttsRef!.send({
+                            type: "STOP",
+                          }),
+                        ({}) => console.debug("[SpSt→ASR] STOP"),
+                        ({ context }) =>
+                          context.asrRef!.send({
                             type: "STOP",
                           }),
                       ],
                     },
                     VISEME: {
-                      actions: [
-                        // ({ event }) =>
-                        //   console.debug("[TTS→SpSt] VISEME", event.value),
-                        sendTo("visemes", ({ event }) => ({
-                          type: "VISEME",
-                          value: event.value,
-                        })),
-                      ],
+                      actions: sendTo("visemes", ({ event }) => ({
+                        type: "VISEME",
+                        value: event.value,
+                      })),
                     },
                     FURHAT_BLENDSHAPES: {
                       actions: [
-                        ({ event }) =>
+                        ({ event }: { event: any }) =>
                           console.debug(
                             "[SpSt] FURHAT_BLENDSHAPES",
                             event.value,
@@ -315,48 +347,113 @@ const speechstate = setup({
                         })),
                       ],
                     },
-                    SPEAK_COMPLETE: {
-                      target: "Idle",
+                    UPDATE_ASR_PARAMS: {
                       actions: [
-                        () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
-                        sendParent({ type: "SPEAK_COMPLETE" }),
+                        () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMS"),
+                        ({ context, event }) =>
+                          context.asrRef!.send({
+                            type: "UPDATE_ASR_PARAMS",
+                            value: event.value,
+                          }),
                       ],
                     },
+                    SPEAK_COMPLETE: [
+                      {
+                        target: "Recognising",
+                        guard: ({ context }) => !!context.bargeIn,
+                        actions: [
+                          () =>
+                            console.debug(
+                              "[TTS→SpSt] SPEAK_COMPLETE (barge-in)",
+                            ),
+                          sendParent({ type: "SPEAK_COMPLETE" }),
+                          ({ context }) =>
+                            context.asrRef!.send({
+                              type: "START_NOINPUT_TIMEOUT",
+                            }),
+                        ],
+                      },
+                      {
+                        target: "Idle",
+                        actions: [
+                          () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
+                          sendParent({ type: "SPEAK_COMPLETE" }),
+                        ],
+                      },
+                    ],
                   },
                   states: {
                     Start: {
                       meta: { view: "idle" },
                       entry: [
+                        assign(({ event }) => ({
+                          bargeIn:
+                            (event as TTSSpeakEvent).value.bargeIn || false,
+                        })),
                         ({ event }) =>
                           console.debug(
                             "[SpSt→TTS] SPEAK",
-                            (event as any).value,
+                            (event as TTSSpeakEvent).value,
                           ),
                         ({ context, event }) =>
-                          context.ttsRef.send({
+                          context.ttsRef!.send({
                             type: "SPEAK",
-                            value: (event as any).value,
+                            value: (event as TTSSpeakEvent).value,
                           }),
                       ],
                       on: {
-                        TTS_STARTED: {
+                        TTS_STARTED: [
+                          {
+                            target: "StartASR",
+                            guard: ({ context }) => !!context.bargeIn,
+                          },
+                          {
+                            target: "Proceed",
+                          },
+                        ],
+                      },
+                    },
+                    StartASR: {
+                      entry: [
+                        () => console.debug("[SpSt→ASR] START"),
+                        ({ context }) =>
+                          context.asrRef!.send({
+                            type: "START",
+                            value: context.bargeIn,
+                          }),
+                      ],
+                      on: {
+                        ASR_STARTED: {
                           target: "Proceed",
                           actions: [
-                            () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                            sendParent({ type: "TTS_STARTED" }),
+                            () => console.debug("[ASR→SpSt] ASR_STARTED"),
+                            sendParent({ type: "ASR_STARTED" }),
                           ],
                         },
                       },
                     },
                     Proceed: {
                       meta: { view: "speaking" },
+                      entry: [
+                        () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                        sendParent({ type: "TTS_STARTED" }),
+                      ],
                       on: {
+                        STARTSPEECH: {
+                          actions: [
+                            () =>
+                              console.debug(
+                                "[ASR→SpSt] STARTSPEECH (barge-in)",
+                              ),
+                            { type: "tts.stop" },
+                          ],
+                        },
                         CONTROL: {
                           target: "Paused",
                           actions: [
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
-                              context.ttsRef.send({
+                              context.ttsRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -372,7 +469,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
-                              context.ttsRef.send({
+                              context.ttsRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -385,11 +482,13 @@ const speechstate = setup({
                   meta: { view: "idle" },
                   entry: [
                     () => console.debug("[SpSt→ASR] START"),
-                    ({ context, event }) =>
-                      context.asrRef.send({
+                    ({ context, event }) => {
+                      assertEvent(event, "LISTEN");
+                      context.asrRef!.send({
                         type: "START",
-                        value: (event as any).value,
-                      }),
+                        value: event.value,
+                      });
+                    },
                   ],
                   on: {
                     ASR_STARTED: {
@@ -397,11 +496,16 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[ASR→SpSt] ASR_STARTED"),
                         sendParent({ type: "ASR_STARTED" }),
+                        ({ context }) =>
+                          context.asrRef!.send({
+                            type: "START_NOINPUT_TIMEOUT",
+                          }),
                       ],
                     },
                   },
                 },
                 Recognising: {
+                  id: "Recognising",
                   initial: "Proceed",
                   on: {
                     STOP: {
@@ -409,24 +513,9 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[SpSt→ASR] STOP"),
                         ({ context }) =>
-                          context.asrRef.send({
+                          context.asrRef!.send({
                             type: "STOP",
                           }),
-                      ],
-                    },
-                    RECOGNISED: {
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "[ASR→SpSt] RECOGNISED",
-                            (event as any).value,
-                            (event as any).nluValue,
-                          ),
-                        sendParent(({ event }) => ({
-                          type: "RECOGNISED",
-                          value: (event as any).value,
-                          nluValue: (event as any).nluValue,
-                        })),
                       ],
                     },
                   },
@@ -439,7 +528,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→ASR] CONTROL"),
                             ({ context }) =>
-                              context.asrRef.send({
+                              context.asrRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
@@ -454,7 +543,7 @@ const speechstate = setup({
                           actions: [
                             () => console.debug("[SpSt→ASR] CONTROL"),
                             ({ context }) =>
-                              context.asrRef.send({
+                              context.asrRef!.send({
                                 type: "CONTROL",
                               }),
                           ],
