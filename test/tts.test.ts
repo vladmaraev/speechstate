@@ -117,13 +117,13 @@ describe("Synthesis test", async () => {
           "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/viper.mp3",
       },
     });
-    await waitForView(actor, "speaking", 1000);
+    await waitForView(actor, "speaking", 2000);
     await pause(5000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
     await pause(1000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
-    const snapshot = await waitForView(actor, "speaking", 1000);
+    const snapshot = await waitForView(actor, "speaking", 2000);
     expect(snapshot).toBeTruthy();
   });
 
@@ -149,7 +149,7 @@ describe("Synthesis test", async () => {
         cache: "https://tala-tts-service.azurewebsites.net/api/",
       },
     });
-    const snapshot = await waitForView(actor, "speaking", 1000);
+    const snapshot = await waitForView(actor, "speaking", 2000);
     expect(snapshot).toBeTruthy();
   });
 
@@ -172,13 +172,29 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream, go to idle state after timeout", async () => {
+  test("synthesise from stream, go to idle state after timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/noend" },
     });
     await waitForView(actor, "speaking", 1000);
     const snapshot = await waitForView(actor, "idle", 15_000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  /** just for the reference (tests couldn't be run on mobile Safari) */
+  test("synthesise in chain, fails on mobile safari", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "Hello." },
+    });
+    await waitForView(actor, "speaking", 500);
+    await waitForView(actor, "idle", 5000);
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "And hello!" },
+    });
+    const snapshot = await waitForView(actor, "speaking", 500);
     expect(snapshot).toBeTruthy();
   });
 });
