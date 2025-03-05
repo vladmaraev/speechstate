@@ -41,7 +41,35 @@ const speechMachine = createMachine({
     return { ssRef: spawn(speechstate, { input: settings }) };
   },
   initial: "Main",
-  states: { Main: {} },
+  states: {
+    Main: { on: { CLICK: "UtteranceOne" } },
+    UtteranceOne: {
+      entry: ({ context }) =>
+        context.ssRef.send({
+          type: "SPEAK",
+          value: {
+            utterance: "Hello",
+          },
+        }),
+      on: { SPEAK_COMPLETE: "Listening" },
+    },
+    Listening: {
+      entry: ({ context }) =>
+        context.ssRef.send({
+          type: "LISTEN",
+        }),
+      on: { LISTEN_COMPLETE: "UtteranceTwo" },
+    },
+    UtteranceTwo: {
+      entry: ({ context }) =>
+        context.ssRef.send({
+          type: "SPEAK",
+          value: {
+            utterance: "And hello",
+          },
+        }),
+    },
+  },
 });
 
 export const speechState = createActor(speechMachine, {
@@ -52,3 +80,7 @@ speechState.start();
 speechState.getSnapshot().context.ssRef.send({ type: "PREPARE" });
 
 (window as any).speechService = speechState;
+
+document.getElementById("app").addEventListener("click", function (event) {
+  speechState.send({ type: "CLICK" });
+});

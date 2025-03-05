@@ -37,7 +37,7 @@ describe("SpeechState test", async () => {
     await waitForView(actor, "idle", 10000);
   });
 
-  test("recognise after new token", async () => {
+  test.only("recognise after new token", async () => {
     await pause(15_000);
     actor.getSnapshot().context.ssRef.send({
       type: "LISTEN",
@@ -63,7 +63,7 @@ describe("SpeechState test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("speak during getting a new token, then speak with a new token", async () => {
+  test("speak during getting a new token, then speak with a new token", async () => {
     await pause(4_000);
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",

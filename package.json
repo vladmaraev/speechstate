@@ -1,11 +1,13 @@
 {
   "name": "speechstate",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "license": "GPL-3.0",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "dependencies": {
     "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.16",
     "xstate": "^5.17.4"
@@ -15,13 +17,20 @@
     "compile": "tsc",
     "test": "vitest",
     "test:browser": "vitest",
-    "sse": "node test/server"
+    "sse": "node test/server.mjs"
   },
   "eslintConfig": {
-    "extends": ["react-app", "react-app/jest"]
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
@@ -33,7 +42,7 @@
     "@testing-library/dom": "^10.4.0",
     "@types/jest": "^29.5.2",
     "@types/webspeechapi": "^0.0.29",
-    "@vitest/browser": "^2.1.4",
+    "@vitest/browser": "^3.0.7",
     "buffer": "^5.5.0||^6.0.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
@@ -43,11 +52,15 @@
     "ts-jest": "^29.1.0",
     "typescript": "^5.0.4",
     "vite": "^5.0.11",
-    "vitest": "^2.1.4",
+    "vitest": "^3.0.7",
     "webdriverio": "^9.2.8",
     "ws": "^8.16.0"
   },
-  "trustedDependencies": ["p-defer-es5", "edgedriver", "core-js-pure"],
+  "trustedDependencies": [
+    "p-defer-es5",
+    "edgedriver",
+    "core-js-pure"
+  ],
   "packageManager": "yarn@3.6.4",
   "description": "* SDK",
   "directories": {

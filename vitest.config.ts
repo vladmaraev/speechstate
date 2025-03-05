@@ -4,9 +4,8 @@ export default defineConfig({
   test: {
     browser: {
       enabled: true,
-      name: "chromium",
-      provider: "playwright",
-      providerOptions: {},
+      instances: [{ browser: "chromium" }],
+      api: { host: "0.0.0.0" },
     },
   },
 });

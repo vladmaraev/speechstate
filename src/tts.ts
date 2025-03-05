@@ -195,6 +195,9 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
+      const wsaTTS = input.wsaTTS;
+      const wsaUtt = input.wsaUtt;
+
       if (["", " "].includes(input.utterance)) {
         console.debug("[TTS] SPEAK: (empty utterance)");
         sendBack({ type: "SPEAK_COMPLETE" });
@@ -206,7 +209,7 @@ export const ttsMachine = setup({
           input.ttsLexicon,
           1,
         ); // todo speech rate;
-        const utterance = new input.wsaUtt(content);
+        const utterance = new wsaUtt(content);
         utterance.onsynthesisstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
@@ -223,7 +226,7 @@ export const ttsMachine = setup({
             });
           };
         }
-        input.wsaTTS.speak(utterance);
+        wsaTTS.speak(utterance);
       }
     }),
   },
@@ -267,7 +270,15 @@ export const ttsMachine = setup({
           on: {
             READY: {
               target: "Ready",
-              actions: sendParent({ type: "TTS_READY" }),
+              actions: [
+                assign(({ event }) => {
+                  return {
+                    wsaTTS: event.value.wsaTTS,
+                    wsaUtt: event.value.wsaUtt,
+                  };
+                }),
+                sendParent({ type: "TTS_READY" }),
+              ],
             },
           },
         },
