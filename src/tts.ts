@@ -160,7 +160,6 @@ export const ttsMachine = setup({
     ),
     ponyfill: fromCallback<null, TTSPonyfillInput>(({ sendBack, input }) => {
       const ponyfill = createSpeechSynthesisPonyfill({
-        audioContext: input.audioContext,
         credentials: {
           region: input.azureRegion,
           authorizationToken: input.azureAuthorizationToken,
@@ -734,7 +733,6 @@ export const ttsMachine = setup({
             id: "ponyTTS",
             src: "ponyfill",
             input: ({ context }) => ({
-              audioContext: context.audioContext,
               azureAuthorizationToken: context.azureAuthorizationToken,
               azureRegion: context.azureRegion,
             }),
