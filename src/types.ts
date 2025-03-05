@@ -19,7 +19,7 @@ export interface AzureLanguageCredentials {
 
 export interface Settings {
   locale?: string;
-  azureCredentials: string | AzureCredentials | AzureSpeechCredentials;
+  azureCredentials: string | AzureSpeechCredentials;
   azureRegion: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
@@ -161,7 +161,6 @@ export interface TTSContext extends TTSInit {
 }
 
 export interface TTSPonyfillInput {
-  audioContext: AudioContext;
   azureRegion: string;
   azureAuthorizationToken: string;
 }
