@@ -161,6 +161,7 @@ export interface TTSContext extends TTSInit {
 }
 
 export interface TTSPonyfillInput {
+  audioContext: AudioContext;
   azureRegion: string;
   azureAuthorizationToken: string;
 }

@@ -31,7 +31,7 @@ const settings: Settings = {
   azureLanguageCredentials: azureLanguageCredentials,
   asrDefaultCompleteTimeout: 0,
   asrDefaultNoInputTimeout: 5000,
-  locale: "sv-SE",
+  locale: "en-US",
   ttsDefaultVoice: "en-US-DavisNeural",
   // speechRecognitionEndpointId: "",
 };
@@ -48,7 +48,9 @@ const speechMachine = createMachine({
         context.ssRef.send({
           type: "SPEAK",
           value: {
-            utterance: "Hello",
+            utterance: `<mstts:viseme type="FacialExpression"/> Hello <bookmark mark='flower_1'/>there`,
+            voice: "en-US-AvaNeural",
+            visemes: true,
           },
         }),
       on: { SPEAK_COMPLETE: "Listening" },
