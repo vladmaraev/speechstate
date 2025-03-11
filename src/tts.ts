@@ -18,8 +18,7 @@ import {
   ConstructableSpeechSynthesisUtterance,
 } from "./types";
 
-import createSpeechSynthesisPonyfill from "@vladmaraev/web-speech-cognitive-services-davi";
-import type { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
+import { createSpeechSynthesisPonyfill } from "web-speech-cognitive-services";
 
 const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
 
@@ -174,7 +173,10 @@ export const ttsMachine = setup({
           console.debug("[TTS] READY");
           sendBack({
             type: "READY",
-            value: { wsaTTS: tts, wsaUtt: ttsUtterance },
+            value: {
+              wsaTTS: tts,
+              wsaUtt: ttsUtterance,
+            },
           });
         } else {
           console.error("[TTS] No voices available");
@@ -209,7 +211,7 @@ export const ttsMachine = setup({
           1,
         ); // todo speech rate;
         const utterance = new wsaUtt(content);
-        utterance.onsynthesisstart = () => {
+        utterance.onstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
         };
@@ -218,7 +220,7 @@ export const ttsMachine = setup({
           console.debug("[TTS] SPEAK_COMPLETE");
         };
         if (input.visemes) {
-          utterance.onviseme = (event: SpeechSynthesisEventProps) => {
+          utterance.onviseme = (event) => {
             sendBack({
               type: "VISEME",
               value: event,
@@ -269,15 +271,7 @@ export const ttsMachine = setup({
           on: {
             READY: {
               target: "Ready",
-              actions: [
-                assign(({ event }) => {
-                  return {
-                    wsaTTS: event.value.wsaTTS,
-                    wsaUtt: event.value.wsaUtt,
-                  };
-                }),
-                sendParent({ type: "TTS_READY" }),
-              ],
+              actions: sendParent({ type: "TTS_READY" }),
             },
           },
         },
@@ -305,7 +299,11 @@ export const ttsMachine = setup({
                   },
                   {
                     target: "Speaking",
-                    actions: assign({ agenda: ({ event }) => event.value }),
+                    actions: [
+                      assign({ agenda: ({ event }) => event.value }),
+                      ({ event }) =>
+                        console.debug("[TTS] SPEAK:", event.value.utterance),
+                    ],
                   },
                 ],
               },
@@ -608,6 +606,7 @@ export const ttsMachine = setup({
               on: {
                 SPEAK_COMPLETE: {
                   target: "Idle",
+                  actions: sendParent({ type: "SPEAK_COMPLETE" }),
                 },
                 TTS_STARTED: {
                   actions: [
@@ -693,8 +692,6 @@ export const ttsMachine = setup({
               exit: sendParent({ type: "SPEAK_COMPLETE" }),
               states: {
                 Go: {
-                  entry: ({ context }) =>
-                    console.debug("[TTS] SPEAK:", context.utteranceFromStream),
                   invoke: {
                     src: "start",
                     input: ({ context }) => ({
@@ -735,17 +732,16 @@ export const ttsMachine = setup({
             input: ({ context }) => ({
               azureAuthorizationToken: context.azureAuthorizationToken,
               azureRegion: context.azureRegion,
+              audioContext: context.audioContext,
             }),
           },
 
           on: {
             READY: {
-              actions: [
-                assign({
-                  wsaTTS: ({ event }) => event.value.wsaTTS,
-                  wsaUtt: ({ event }) => event.value.wsaUtt,
-                }),
-              ],
+              actions: assign({
+                wsaTTS: ({ event }) => event.value.wsaTTS,
+                wsaUtt: ({ event }) => event.value.wsaUtt,
+              }),
             },
             NEW_TOKEN: {
               target: "Ponyfill",

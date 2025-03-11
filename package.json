@@ -1,6 +1,6 @@
 {
   "name": "speechstate",
-  "version": "2.9.2",
+  "version": "2.10.0",
   "license": "GPL-3.0",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
@@ -10,6 +10,7 @@
   ],
   "dependencies": {
     "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.16",
+    "web-speech-cognitive-services": "^8.1.1",
     "xstate": "^5.17.4"
   },
   "scripts": {

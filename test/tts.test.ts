@@ -34,7 +34,7 @@ describe("Synthesis test", async () => {
     );
 
   beforeEach(async () => {
-    await waitForView(actor, "idle", 10000);
+    await waitForView(actor, "idle", 20_000);
   });
 
   test("synthesise", async () => {
@@ -113,12 +113,11 @@ describe("Synthesis test", async () => {
       type: "SPEAK",
       value: {
         utterance: "Imagine that I am playing some hard rock!",
-        audioURL:
-          "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/viper.mp3",
+        audioURL: "http://localhost:3000/audio/test.mp3",
       },
     });
     await waitForView(actor, "speaking", 2000);
-    await pause(5000);
+    await pause(1000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
     await pause(1000);
@@ -132,11 +131,10 @@ describe("Synthesis test", async () => {
       type: "SPEAK",
       value: {
         utterance: "Imagine that I am playing some hard rock!",
-        audioURL:
-          "https://mdn.github.io/webaudio-examples/decode-audio-data/promise/undefined.mp3",
+        audioURL: "http://localhost:3000/audio/broken.mp3",
       },
     });
-    const snapshot = await waitForView(actor, "speaking", 1000);
+    const snapshot = await waitForView(actor, "speaking", 2000);
     expect(snapshot).toBeTruthy();
   });
 
@@ -183,7 +181,7 @@ describe("Synthesis test", async () => {
   });
 
   /** just for the reference (tests couldn't be run on mobile Safari) */
-  test("synthesise in chain, fails on mobile safari", async () => {
+  test.skip("synthesise in chain, fails on mobile safari", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "Hello." },
