@@ -1,6 +1,6 @@
 {
   "name": "speechstate",
-  "version": "2.9.2",
+  "version": "2.10.0",
   "license": "GPL-3.0",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",

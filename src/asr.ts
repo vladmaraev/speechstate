@@ -248,7 +248,7 @@ export const asrMachine = setup({
           on: {
             RECOGNISED: [
               {
-                target: "#asr.NLURequest",
+                target: "NLURequest",
                 guard: { type: "nlu_is_activated" },
                 actions: assign({
                   result: ({ event }) => event.value,
@@ -302,68 +302,65 @@ export const asrMachine = setup({
             Continue: { type: "final" },
           },
         },
+        NLURequest: {
+          invoke: {
+            src: "nluPromise",
+            input: ({ context }) => {
+              let c: AzureLanguageCredentials;
+              typeof context.params.nlu === "boolean"
+                ? (c = context.azureLanguageCredentials)
+                : (c = context.params.nlu);
+              return {
+                endpoint: c.endpoint,
+                key: c.key,
+                projectName: c.projectName,
+                deploymentName: c.deploymentName,
+                query: context.result[0].utterance,
+                locale: (context.params || {}).locale || context.locale,
+              };
+            },
+            onDone: [
+              {
+                actions: [
+                  ({ event }) =>
+                    console.error("[ASR] no NLU prediction", event.output),
+                  sendParent(({ context }) => ({
+                    type: "RECOGNISED",
+                    value: context.result,
+                  })),
+                ],
+                target: "WaitToStop",
+                guard: ({ event }) => !(event.output.result || {}).prediction,
+              },
+              {
+                actions: [
+                  ({ event }) =>
+                    console.debug(
+                      "[ASR] NLU result",
+                      event.output.result.prediction,
+                    ),
+                  sendParent(({ context, event }) => ({
+                    type: "RECOGNISED",
+                    value: context.result,
+                    nluValue: event.output.result.prediction,
+                  })),
+                ],
+                target: "WaitToStop",
+              },
+            ],
+            onError: {
+              actions: [
+                ({ event }) => console.error("[ASR]", event.error),
+                sendParent(({ context }) => ({
+                  type: "RECOGNISED",
+                  value: context.result,
+                })),
+              ],
+              target: "WaitToStop",
+            },
+          },
+        },
         Stopped: { type: "final" },
-      },
-    },
-    NLURequest: {
-      invoke: {
-        src: "nluPromise",
-        input: ({ context }) => {
-          let c: AzureLanguageCredentials;
-          typeof context.params.nlu === "boolean"
-            ? (c = context.azureLanguageCredentials)
-            : (c = context.params.nlu);
-          return {
-            endpoint: c.endpoint,
-            key: c.key,
-            projectName: c.projectName,
-            deploymentName: c.deploymentName,
-            query: context.result[0].utterance,
-            locale: (context.params || {}).locale || context.locale,
-          };
-        },
-        onDone: [
-          {
-            actions: [
-              ({ event }) =>
-                console.error("[ASR] no NLU prediction", event.output),
-              sendParent(({ context }) => ({
-                type: "RECOGNISED",
-                value: context.result,
-              })),
-              sendParent({ type: "LISTEN_COMPLETE" }),
-            ],
-            target: "Ready",
-            guard: ({ event }) => !(event.output.result || {}).prediction,
-          },
-          {
-            actions: [
-              ({ event }) =>
-                console.debug(
-                  "[ASR] NLU result",
-                  event.output.result.prediction,
-                ),
-              sendParent(({ context, event }) => ({
-                type: "RECOGNISED",
-                value: context.result,
-                nluValue: event.output.result.prediction,
-              })),
-              sendParent({ type: "LISTEN_COMPLETE" }),
-            ],
-            target: "Ready",
-          },
-        ],
-        onError: {
-          actions: [
-            ({ event }) => console.error("[ASR]", event.error),
-            sendParent(({ context }) => ({
-              type: "RECOGNISED",
-              value: context.result,
-            })),
-            sendParent({ type: "LISTEN_COMPLETE" }),
-          ],
-          target: "Ready",
-        },
       },
     },
   },

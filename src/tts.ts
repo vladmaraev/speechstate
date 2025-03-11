@@ -211,7 +211,7 @@ export const ttsMachine = setup({
           1,
         ); // todo speech rate;
         const utterance = new wsaUtt(content);
-        utterance.onsynthesisstart = () => {
+        utterance.onstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
         };
@@ -299,7 +299,11 @@ export const ttsMachine = setup({
                   },
                   {
                     target: "Speaking",
-                    actions: assign({ agenda: ({ event }) => event.value }),
+                    actions: [
+                      assign({ agenda: ({ event }) => event.value }),
+                      ({ event }) =>
+                        console.debug("[TTS] SPEAK:", event.value.utterance),
+                    ],
                   },
                 ],
               },
@@ -602,6 +606,7 @@ export const ttsMachine = setup({
               on: {
                 SPEAK_COMPLETE: {
                   target: "Idle",
+                  actions: sendParent({ type: "SPEAK_COMPLETE" }),
                 },
                 TTS_STARTED: {
                   actions: [
@@ -687,11 +692,6 @@ export const ttsMachine = setup({
               exit: sendParent({ type: "SPEAK_COMPLETE" }),
               states: {
                 Go: {
-                  entry: ({ event }) =>
-                    console.debug(
-                      "[TTS] SPEAK:",
-                      (event as any).value.utterance,
-                    ),
                   invoke: {
                     src: "start",
                     input: ({ context }) => ({
