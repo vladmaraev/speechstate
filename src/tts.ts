@@ -55,6 +55,17 @@ export const ttsMachine = setup({
         };
       },
     ),
+    assignCurrentLocale: assign(
+      ({
+        event,
+      }: {
+        event: { type: "STREAMING_SET_LOCALE"; value: string };
+      }) => {
+        return {
+          currentLocale: event.value,
+        };
+      },
+    ),
     sendParentCurrentPersona: sendParent(
       ({
         event,
@@ -151,6 +162,9 @@ export const ttsMachine = setup({
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
+        });
+        eventSource.addEventListener("STREAMING_SET_LOCALE", (event) => {
+          sendBack({ type: "STREAMING_SET_LOCALE", value: event.data });
         });
         eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
           sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
@@ -328,6 +342,9 @@ export const ttsMachine = setup({
                     STREAMING_SET_VOICE: {
                       actions: "assignCurrentVoice",
                     },
+                    STREAMING_SET_LOCALE: {
+                      actions: "assignCurrentLocale",
+                    },
                     STREAMING_SET_PERSONA: {
                       actions: "sendParentCurrentPersona",
                     },
@@ -451,7 +468,10 @@ export const ttsMachine = setup({
                                 context.currentVoice ||
                                 context.agenda.voice ||
                                 context.ttsDefaultVoice,
-                              locale: context.locale,
+                              locale:
+                                context.currentLocale ||
+                                context.agenda.locale ||
+                                context.locale,
                             }),
                             onError: "Go",
                             onDone: [
@@ -489,7 +509,10 @@ export const ttsMachine = setup({
                                     context.currentVoice ||
                                     context.agenda.voice ||
                                     context.ttsDefaultVoice,
-                                  locale: context.locale,
+                                  locale:
+                                    context.currentLocale ||
+                                    context.agenda.locale ||
+                                    context.locale,
                                 }),
                                 onDone: {
                                   target: "PlayAudio",
@@ -560,7 +583,10 @@ export const ttsMachine = setup({
                                 context.currentVoice ||
                                 context.agenda.voice ||
                                 context.ttsDefaultVoice,
-                              locale: context.locale,
+                              locale:
+                                context.currentLocale ||
+                                context.agenda.locale ||
+                                context.locale,
                               utterance: context.utteranceFromStream,
                             }),
                           },
@@ -701,7 +727,10 @@ export const ttsMachine = setup({
                       voice: context.agenda.voice || context.ttsDefaultVoice,
                       visemes: context.agenda.visemes,
                       // streamURL: context.agenda.streamURL,
-                      locale: context.locale,
+                      locale:
+                        context.currentLocale ||
+                        context.agenda.locale ||
+                        context.locale,
                       utterance: context.agenda.utterance,
                     }),
                   },
