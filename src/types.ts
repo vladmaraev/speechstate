@@ -32,6 +32,7 @@ export interface Settings {
 
 export interface Agenda {
   utterance: string;
+  locale?: string;
   voice?: string;
   stream?: string;
   cache?: string;
@@ -155,6 +156,7 @@ export interface TTSContext extends TTSInit {
   agenda?: Agenda;
   buffer?: string;
   currentVoice?: string;
+  currentLocale?: string;
   utteranceFromStream?: string;
   audioBuffer?: AudioBuffer;
   audioBufferSourceNode?: AudioBufferSourceNode;
@@ -183,6 +185,7 @@ export type TTSEvent =
   | { type: "TTS_STARTED"; value?: AudioBufferSourceNode }
   | { type: "STREAMING_CHUNK"; value: string }
   | { type: "STREAMING_SET_VOICE"; value: string }
+  | { type: "STREAMING_SET_LOCALE"; value: string }
   | { type: "STREAMING_SET_PERSONA"; value: string }
   | { type: "STREAMING_DONE" }
   | { type: "SPEAK_COMPLETE" }

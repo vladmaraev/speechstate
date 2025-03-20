@@ -66,14 +66,19 @@ Example action:
 ** Types:
 #+begin_src typescript
   interface Hypothesis {
-      utterance: string;
-      confidence: number;
+    utterance: string;
+    confidence: number;
   }
 
   interface Agenda {
     utterance: string;
     voice?: string; // defaults to "en-US-DavisNeural"
-    streamURL?: string;
+    locale?: string;
+    stream?: string;
+    cache?: string;
+    fillerDelay?: number;
+    visemes?: boolean;
+    audioURL?: string;
   }
 
   interface RecogniseParameters {
@@ -90,7 +95,6 @@ Example action:
     projectName: string;
     deploymentName: string;
   }
-
 #+end_src
 
 

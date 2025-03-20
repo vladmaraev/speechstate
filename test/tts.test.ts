@@ -58,6 +58,20 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  test("synthesise with voice and locale setting", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Bonjour !  Je suis Henri.",
+        voice: "fr-FR-HenriNeural",
+        locale: "fr-FR"
+      },
+    });
+    const snapshot = await waitForView(actor, "speaking", 500);
+    expect(snapshot).toBeTruthy();
+  });
+
+  
   test("synthesise, pause, speak again", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",

@@ -5,7 +5,7 @@ import cors from "cors";
 
 const app = express();
 app.use(cors());
-app.use(express.static('public'))
+app.use(express.static("public"));
 
 run().catch((err) => console.log(err));
 
@@ -37,15 +37,17 @@ async function run() {
         words = "Hello, |this |is |a";
         break;
     }
-    words = words.split("|");
+    const wordlist = words.split("|");
     const interval = setInterval(() => {
-      if (words[counter]) {
+      if (wordlist[counter]) {
         const chunk =
-          words[counter] === "<v>"
+          wordlist[counter] === "<v>"
             ? `event: STREAMING_SET_VOICE\ndata:en-US-EmmaMultilingualNeural\n\n`
-            : words[counter] !== "[end]"
-              ? `event: STREAMING_CHUNK\ndata:${words[counter]}\n\n`
-              : `event: STREAMING_DONE\ndata:\n\n`;
+            : wordlist[counter] === "<l>"
+              ? `event: STREAMING_SET_LOCALE\ndata:fr-FR\n\n`
+              : wordlist[counter] !== "[end]"
+                ? `event: STREAMING_CHUNK\ndata:${wordlist[counter]}\n\n`
+                : `event: STREAMING_DONE\ndata:\n\n`;
         res.write(chunk);
         counter++;
       } else {
