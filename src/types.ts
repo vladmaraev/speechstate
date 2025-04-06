@@ -1,5 +1,3 @@
-import { SpeechSynthesisEventProps } from "@vladmaraev/web-speech-cognitive-services-davi";
-
 export interface AzureSpeechCredentials {
   endpoint: string;
   key: string;
@@ -19,8 +17,9 @@ export interface AzureLanguageCredentials {
 
 export interface Settings {
   locale?: string;
-  azureCredentials: string | AzureSpeechCredentials;
-  azureRegion: string;
+  noPonyfill?: boolean;
+  azureCredentials?: string | AzureSpeechCredentials;
+  azureRegion?: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;
   asrDefaultNoInputTimeout?: number;
@@ -103,7 +102,8 @@ export type ASREvent =
   | { type: "RECOGNISED"; value: Hypothesis[] }
   | { type: "STOP" }
   | { type: "LISTEN_COMPLETE" }
-  | { type: "RESULT"; value: Hypothesis[] };
+  | { type: "RESULT"; value: Hypothesis[] }
+  | { type: "FINAL_RESULT" };
 
 export interface ASRContext extends ASRInit {
   result?: Hypothesis[];
@@ -135,11 +135,6 @@ export interface ASRPonyfillInput extends RecogniseParameters {
   locale: string;
 }
 
-export interface ConstructableSpeechSynthesisUtterance
-  extends SpeechSynthesisUtterance {
-  new (s: string);
-}
-
 export interface TTSInit {
   azureAuthorizationToken: string;
   audioContext: AudioContext;
@@ -152,7 +147,10 @@ export interface TTSInit {
 export interface TTSContext extends TTSInit {
   wsaTTS?: SpeechSynthesis;
   wsaVoice?: SpeechSynthesisVoice;
-  wsaUtt?: ConstructableSpeechSynthesisUtterance;
+  wsaUtt?: {
+    prototype: SpeechSynthesisUtterance;
+    new (text?: string): SpeechSynthesisUtterance;
+  };
   agenda?: Agenda;
   buffer?: string;
   currentVoice?: string;
@@ -177,7 +175,10 @@ export type TTSEvent =
       type: "READY";
       value: {
         wsaTTS: SpeechSynthesis;
-        wsaUtt: ConstructableSpeechSynthesisUtterance;
+        wsaUtt: {
+          prototype: SpeechSynthesisUtterance;
+          new (text?: string): SpeechSynthesisUtterance;
+        };
       };
     }
   | { type: "ERROR" }
@@ -189,7 +190,7 @@ export type TTSEvent =
   | { type: "STREAMING_SET_PERSONA"; value: string }
   | { type: "STREAMING_DONE" }
   | { type: "SPEAK_COMPLETE" }
-  | { type: "VISEME"; value: SpeechSynthesisEventProps }
+  // | { type: "VISEME"; value: SpeechSynthesisEventProps }
   | { type: "FURHAT_BLENDSHAPES"; value: Frame[] };
 
 export type Frame = { time: number[]; params: any };

@@ -26,6 +26,7 @@ const azureLanguageCredentials: AzureLanguageCredentials = {
 };
 
 const settings: Settings = {
+  noPonyfill: true,
   azureCredentials: azureSpeechCredentials,
   azureRegion: "swedencentral",
   azureLanguageCredentials: azureLanguageCredentials,
@@ -48,7 +49,7 @@ const speechMachine = createMachine({
         context.ssRef.send({
           type: "SPEAK",
           value: {
-            utterance: `<mstts:viseme type="FacialExpression"/> Hello <bookmark mark='flower_1'/>there`,
+            utterance: `Hi`,
             voice: "en-US-AvaNeural",
             visemes: true,
           },

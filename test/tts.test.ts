@@ -11,6 +11,7 @@ describe("Synthesis test", async () => {
       return {
         ssRef: spawn(speechstate, {
           input: {
+            noPonyfill: true,
             azureRegion: "swedencentral",
             azureCredentials: {
               endpoint:
@@ -122,6 +123,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  
   test("play audio, stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
