@@ -213,8 +213,8 @@ export const ttsMachine = setup({
       const wsaTTS = input.wsaTTS;
       const wsaUtt = input.wsaUtt;
 
-      if (["", " "].includes(input.utterance)) {
-        console.debug("[TTS] SPEAK: (empty utterance)");
+      if (!input.utterance.match(/[\p{L}\p{N}]/giu)) {
+        console.warn("[TTS] SPEAK: (utterance doesn't contain alphanumeric characters)");
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
         const content = wrapSSML(
