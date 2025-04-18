@@ -213,10 +213,12 @@ export const ttsMachine = setup({
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
-      let utterance;
+      let utterance: SpeechSynthesisUtterance;
       const wsaTTS = input.wsaTTS;
-      if (["", " "].includes(input.utterance)) {
-        console.debug("[TTS] SPEAK: (empty utterance)");
+      if (!input.utterance.match(/[\p{L}\p{N}]/giu)) {
+        console.warn(
+          "[TTS] SPEAK: (utterance doesn't contain alphanumeric characters)",
+        );
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
         if (input.wsaUtt) {
@@ -247,14 +249,14 @@ export const ttsMachine = setup({
           sendBack({ type: "SPEAK_COMPLETE" });
           console.debug("[TTS] SPEAK_COMPLETE");
         };
-        if (input.visemes) {
-          (utterance as any).onviseme = (event) => {
-            sendBack({
-              type: "VISEME",
-              value: event,
-            });
-          };
-        }
+        // if (input.visemes) {
+        //   (utterance as any).onviseme = (event) => {
+        //     sendBack({
+        //       type: "VISEME",
+        //       value: event,
+        //     });
+        //   };
+        // }
         wsaTTS.speak(utterance);
       }
     }),
