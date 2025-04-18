@@ -356,6 +356,7 @@ export const ttsMachine = setup({
                         STREAMING_CHUNK: {
                           target: "Buffering",
                         },
+                        STREAMING_DONE: "BufferingDone",
                       },
                     },
                     Buffering: {
