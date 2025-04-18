@@ -18,9 +18,7 @@ import {
   AzureLanguageCredentials,
 } from "./types";
 
-import createSpeechRecognitionPonyfill, {
-  SpeechRecognitionResultListItem,
-} from "@vladmaraev/web-speech-cognitive-services-davi";
+import { createSpeechRecognitionPonyfill } from "web-speech-cognitive-services";
 
 export const asrMachine = setup({
   types: {
@@ -56,40 +54,54 @@ export const asrMachine = setup({
     },
   },
   actors: {
-    new_ponyfill: fromCallback<null, ASRPonyfillInput>(
+    maybe_ponyfill: fromCallback<null, ASRPonyfillInput>(
       ({ sendBack, input, receive }) => {
-        const { speechRecognition } = createSpeechRecognitionPonyfill(
-          {
-            audioContext: input.audioContext,
-            speechRecognitionEndpointId: input.speechRecognitionEndpointId,
-            credentials: {
-              region: input.azureRegion,
-              authorizationToken: input.azureAuthorizationToken,
-            },
-          },
-          {
-            passive: false,
-            interimResults: true,
-            continuous: true,
-            lang: input.locale || "en-US",
-            grammarsList: input.hints,
-            autoStart: true,
-            timerBeforeSpeechEnd: input.completeTimeout,
-            // debug: true,
-          },
-        );
-        let asr: SpeechRecognition = speechRecognition;
-        asr.onresult = function (event: any) {
-          if (event.isFinal) {
-            const transcript = event
-              .map((x: SpeechRecognitionResultListItem) =>
-                x.transcript.replace(/\.$/, ""),
+        let recognition: SpeechRecognition;
+        if (input.azureAuthorizationToken) {
+          const { SpeechGrammarList, SpeechRecognition } =
+            createSpeechRecognitionPonyfill({
+              speechRecognitionEndpointId: input.speechRecognitionEndpointId,
+              credentials: {
+                region: input.azureRegion,
+                authorizationToken: input.azureAuthorizationToken,
+              },
+            });
+          recognition = new SpeechRecognition() as any; // ponyfill type mismatch?
+          recognition.grammars = new SpeechGrammarList();
+          if (input.hints) {
+            (recognition.grammars as any).phrases = input.hints;
+          }
+        } else {
+          const SpeechRecognition: {
+            prototype: SpeechRecognition;
+            new (): SpeechRecognition;
+          } = window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          if (input.hints && window.webkitSpeechGrammarList) {
+            let speechRecognitionList = new window.webkitSpeechGrammarList();
+            const grammar =
+              "#JSGF V1.0; grammar hints; public <hints> = " +
+              input.hints.join(" | ") +
+              " ;";
+            speechRecognitionList.addFromString(grammar, 1);
+            recognition.grammars = speechRecognitionList;
+          }
+        }
+        recognition.continuous = true;
+        recognition.lang = input.locale || "en-US";
+        recognition.interimResults = true;
+        recognition.start();
+        recognition.onresult = function (event) {
+          if (event.results[event.results.length - 1].isFinal) {
+            const transcript = Array.from(event.results)
+              .map((x: SpeechRecognitionResult) =>
+                x[0].transcript.replace(/\.$/, ""),
               )
               .join(" ");
             const confidence =
-              event
-                .map((x: SpeechRecognitionResultListItem) => x.confidence)
-                .reduce((a: number, b: number) => a + b) / event.length;
+              Array.from(event.results)
+                .map((x: SpeechRecognitionResult) => x[0].confidence)
+                .reduce((a: number, b: number) => a + b) / event.results.length;
             const res: Hypothesis[] = [
               {
                 utterance: transcript,
@@ -97,29 +109,30 @@ export const asrMachine = setup({
               },
             ];
             sendBack({
-              type: "RECOGNISED",
+              type: "RESULT",
               value: res,
             });
+            console.debug("[ASR] RESULT (pre-final)", res);
           } else {
             sendBack({ type: "STARTSPEECH" });
           }
         };
-        asr.onstart = function () {
+        recognition.onstart = function () {
           sendBack({ type: "STARTED" });
         };
-        asr.onend = function () {
+        recognition.onend = function () {
           sendBack({ type: "LISTEN_COMPLETE" });
         };
         // any: it works, but gives unexpected type error
-        (asr as any).onabort = function () {
+        (recognition as any).onabort = function () {
           sendBack({ type: "LISTEN_COMPLETE" });
         };
-        console.debug("[ASR] READY", asr);
-        sendBack({ type: "READY", value: asr });
+        console.debug("[ASR] READY", recognition);
+        sendBack({ type: "READY", value: recognition });
         receive((event: { type: "STOP" }) => {
           if (event.type === "STOP") {
             console.log("[asr.callback] Receiving STOP");
-            asr.abort();
+            recognition.abort();
           }
         });
       },
@@ -195,7 +208,7 @@ export const asrMachine = setup({
       onDone: "Ready",
       invoke: {
         id: "asr",
-        src: "new_ponyfill",
+        src: "maybe_ponyfill",
         input: ({ context }) => ({
           azureRegion: context.azureRegion,
           audioContext: context.audioContext,
@@ -209,6 +222,28 @@ export const asrMachine = setup({
         }),
       },
       on: {
+        FINAL_RESULT: [
+          {
+            target: ".NLURequest",
+            guard: { type: "nlu_is_activated" },
+          },
+          {
+            target: ".WaitToStop",
+            actions: sendParent(({ context }) => ({
+              type: "RECOGNISED",
+              value: context.result,
+            })),
+          },
+        ],
+        RESULT: {
+          actions: [
+            assign({
+              result: ({ event }) => event.value,
+            }),
+            cancel("completeTimeout"),
+          ],
+          target: ".InterimResult",
+        },
         STOP: {
           target: ".WaitToStop",
         },
@@ -245,29 +280,25 @@ export const asrMachine = setup({
         },
         InProgress: {
           entry: () => console.debug("[ASR] in progress"),
-          on: {
-            RECOGNISED: [
+        },
+        InterimResult: {
+          entry: [
+            ({ context }) =>
+              console.debug(
+                "RECOGNISED will be sent in (ms)",
+                (context.params || {}).completeTimeout ||
+                  context.asrDefaultCompleteTimeout,
+              ),
+            raise(
+              { type: "FINAL_RESULT" },
               {
-                target: "NLURequest",
-                guard: { type: "nlu_is_activated" },
-                actions: assign({
-                  result: ({ event }) => event.value,
-                }),
+                delay: ({ context }) =>
+                  (context.params || {}).completeTimeout ||
+                  context.asrDefaultCompleteTimeout,
+                id: "completeTimeout",
               },
-              {
-                target: "WaitToStop",
-                actions: [
-                  assign({
-                    result: ({ event }) => event.value,
-                  }),
-                  sendParent(({ context }) => ({
-                    type: "RECOGNISED",
-                    value: context.result,
-                  })),
-                ],
-              },
-            ],
-          },
+            ),
+          ],
         },
         WaitToStop: {
           entry: sendTo("asr", { type: "STOP" }),

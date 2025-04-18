@@ -4,7 +4,8 @@ export default defineConfig({
   test: {
     browser: {
       enabled: true,
-      instances: [{ browser: "chromium" }],
+      provider: 'webdriverio',
+      instances: [{ browser: "firefox" }],
       api: { host: "0.0.0.0" },
     },
   },

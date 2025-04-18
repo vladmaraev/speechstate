@@ -9,7 +9,7 @@
     "/dist"
   ],
   "dependencies": {
-    "@vladmaraev/web-speech-cognitive-services-davi": "^2.0.16",
+    "microsoft-cognitiveservices-speech-sdk": "^1.43.1",
     "web-speech-cognitive-services": "^8.1.1",
     "xstate": "^5.17.4"
   },
@@ -41,8 +41,8 @@
   "devDependencies": {
     "@statelyai/inspect": "^0.4.0",
     "@testing-library/dom": "^10.4.0",
+    "@types/dom-speech-recognition": "^0.0.6",
     "@types/jest": "^29.5.2",
-    "@types/webspeechapi": "^0.0.29",
     "@vitest/browser": "^3.0.7",
     "buffer": "^5.5.0||^6.0.0",
     "cors": "^2.8.5",
@@ -51,7 +51,7 @@
     "jest-environment-jsdom": "^29.5.0",
     "playwright": "^1.48.2",
     "ts-jest": "^29.1.0",
-    "typescript": "^5.0.4",
+    "typescript": "^5.8.2",
     "vite": "^5.0.11",
     "vitest": "^3.0.7",
     "webdriverio": "^9.2.8",

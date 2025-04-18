@@ -7,6 +7,7 @@ import {
   fromPromise,
   and,
   not,
+  raise,
 } from "xstate";
 
 import {
@@ -15,7 +16,6 @@ import {
   TTSEvent,
   TTSContext,
   TTSPonyfillInput,
-  ConstructableSpeechSynthesisUtterance,
 } from "./types";
 
 import { createSpeechSynthesisPonyfill } from "web-speech-cognitive-services";
@@ -205,26 +205,42 @@ export const ttsMachine = setup({
         voice: string;
         ttsLexicon: string;
         locale: string;
-        wsaUtt: ConstructableSpeechSynthesisUtterance;
+        wsaUtt: {
+          prototype: SpeechSynthesisUtterance;
+          new (text?: string): SpeechSynthesisUtterance;
+        };
         wsaTTS: SpeechSynthesis;
         visemes?: boolean;
       }
     >(({ sendBack, input }) => {
+      let utterance: SpeechSynthesisUtterance;
       const wsaTTS = input.wsaTTS;
-      const wsaUtt = input.wsaUtt;
-
       if (!input.utterance.match(/[\p{L}\p{N}]/giu)) {
-        console.warn("[TTS] SPEAK: (utterance doesn't contain alphanumeric characters)");
+        console.warn(
+          "[TTS] SPEAK: (utterance doesn't contain alphanumeric characters)",
+        );
         sendBack({ type: "SPEAK_COMPLETE" });
       } else {
-        const content = wrapSSML(
-          input.utterance,
-          input.voice,
-          input.locale,
-          input.ttsLexicon,
-          1,
-        ); // todo speech rate;
-        const utterance = new wsaUtt(content);
+        if (input.wsaUtt) {
+          const wsaUtt = input.wsaUtt;
+          const content = wrapSSML(
+            input.utterance,
+            input.voice,
+            input.locale,
+            input.ttsLexicon,
+            1,
+          ); // todo speech rate;
+          utterance = new wsaUtt(content);
+        } else {
+          const wsaUtt = SpeechSynthesisUtterance;
+          utterance = new wsaUtt(input.utterance);
+          // utterance.voice = wsaTTS.getVoices()[0];
+          console.debug(wsaTTS.getVoices().map((x) => x.name));
+          const voice = wsaTTS.getVoices().find((x) => x.name === input.voice);
+          if (voice) {
+            utterance.voice = voice;
+          }
+        }
         utterance.onstart = () => {
           sendBack({ type: "TTS_STARTED" });
           console.debug("[TTS] TTS_STARTED");
@@ -233,14 +249,14 @@ export const ttsMachine = setup({
           sendBack({ type: "SPEAK_COMPLETE" });
           console.debug("[TTS] SPEAK_COMPLETE");
         };
-        if (input.visemes) {
-          utterance.onviseme = (event) => {
-            sendBack({
-              type: "VISEME",
-              value: event,
-            });
-          };
-        }
+        // if (input.visemes) {
+        //   (utterance as any).onviseme = (event) => {
+        //     sendBack({
+        //       type: "VISEME",
+        //       value: event,
+        //     });
+        //   };
+        // }
         wsaTTS.speak(utterance);
       }
     }),
@@ -752,9 +768,32 @@ export const ttsMachine = setup({
         },
       },
     },
-    HandleNewTokens: {
-      initial: "Ponyfill",
+    MaybeHandleNewTokens: {
+      initial: "Choice",
       states: {
+        Choice: {
+          always: [
+            {
+              guard: ({ context }) => !!context.azureAuthorizationToken,
+              target: "Ponyfill",
+            },
+            { target: "NoPonyfill" },
+          ],
+        },
+        NoPonyfill: {
+          entry: [
+            raise({
+              type: "READY",
+              value: {
+                wsaTTS: window.speechSynthesis,
+                wsaUtt: SpeechSynthesisUtterance,
+              },
+            }),
+            assign({
+              wsaTTS: window.speechSynthesis,
+            }),
+          ],
+        },
         Ponyfill: {
           invoke: {
             id: "ponyTTS",

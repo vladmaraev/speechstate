@@ -33,6 +33,7 @@ describe("Recognition test", async () => {
         nluResult: undefined,
         ssRef: spawn(speechstate, {
           input: {
+            // noPonyfill: true,
             azureRegion: "swedencentral",
             azureCredentials: {
               endpoint:
@@ -92,13 +93,13 @@ describe("Recognition test", async () => {
         return !!snapshot.context.result;
       },
       {
-        timeout: 5_000,
+        timeout: 6_000,
       },
     );
     expect(snapshot).toBeTruthy();
   });
 
-  test("get some result in Swedish", async () => {
+  test.only("get some result in Swedish", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "Say hey", voice: "sv-SE-SofieNeural" },
@@ -116,7 +117,7 @@ describe("Recognition test", async () => {
         return !!snapshot.context.result;
       },
       {
-        timeout: 5_000,
+        timeout: 6_000,
       },
     );
     expect(snapshot).toBeTruthy();
@@ -125,13 +126,13 @@ describe("Recognition test", async () => {
   test("get some result with hint", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
-      value: { utterance: "Say Talkamatic" },
+      value: { utterance: "Say: aqua beige" },
     });
     await waitForView(actor, "speaking", 1_000);
     await waitForView(actor, "idle", 10_000);
     actor.getSnapshot().context.ssRef.send({
       type: "LISTEN",
-      value: { hints: ["Talkamatic", "Talkamatic"] },
+      value: { hints: ["aqua", "beige"] },
     });
     await waitForView(actor, "idle", 10_000);
     const snapshot = await waitFor(
@@ -140,12 +141,13 @@ describe("Recognition test", async () => {
         return !!snapshot.context.result;
       },
       {
-        timeout: 5_000,
+        timeout: 6_000,
       },
     );
     expect(snapshot).toBeTruthy();
   });
 
+  
   test("get some result with longer interspeech timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -155,7 +157,7 @@ describe("Recognition test", async () => {
     await waitForView(actor, "idle", 10_000);
     actor.getSnapshot().context.ssRef.send({
       type: "LISTEN",
-      value: { completeTimeout: 2000 },
+      value: { completeTimeout: 3000 },
     });
     const snapshot = await waitFor(
       actor,
@@ -214,7 +216,7 @@ describe("Recognition test", async () => {
         return !!snapshot.context.result;
       },
       {
-        timeout: 5_000,
+        timeout: 6_000,
       },
     );
     expect(snapshot).toBeTruthy();

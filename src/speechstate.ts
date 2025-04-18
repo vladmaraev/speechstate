@@ -120,16 +120,29 @@ const speechstate = setup({
               invoke: {
                 id: "createAudioContext",
                 src: "audioContext",
-                onDone: {
-                  target: "GenerateToken",
-                  actions: [
-                    assign(({ event }) => {
-                      return {
-                        audioContext: event.output,
-                      };
-                    }),
-                  ],
-                },
+                onDone: [
+                  {
+                    guard: ({ context }) => !!context.settings.noPonyfill,
+                    target: "Spawn",
+                    actions: [
+                      assign(({ event }) => {
+                        return {
+                          audioContext: event.output,
+                        };
+                      }),
+                    ],
+                  },
+                  {
+                    target: "GenerateToken",
+                    actions: [
+                      assign(({ event }) => {
+                        return {
+                          audioContext: event.output,
+                        };
+                      }),
+                    ],
+                  },
+                ],
               },
             },
             GenerateToken: {
@@ -156,6 +169,7 @@ const speechstate = setup({
               entry: [{ type: "spawnTTS" }, { type: "spawnASR" }],
               after: {
                 NEW_TOKEN_INTERVAL: {
+                  guard: ({ context }) => !context.settings.noPonyfill,
                   target: "GenerateNewTokens",
                   actions: ({}) => console.debug("[SpSt] generating new token"),
                 },

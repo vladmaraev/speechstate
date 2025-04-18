@@ -9,6 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "lib": ["dom", "es2016"],
+    "types": ["dom-speech-recognition"],
     "moduleResolution": "node"
   },
   "include": ["src/index.ts", "src/typings.d.ts"]
