@@ -196,6 +196,17 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  test("synthesise from stream, only STREAMING_DONE is sent", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/sse/onlydone" },
+    });
+    await pause(2000);
+    const snapshot = actor.getSnapshot().context.ssRef.getSnapshot()
+    expect(snapshot.matches({Active: {AsrTtsManager: {Ready: "Idle"}}})).toBeTruthy();
+  });
+
+
   /** just for the reference (tests couldn't be run on mobile Safari) */
   test.skip("synthesise in chain, fails on mobile safari", async () => {
     actor.getSnapshot().context.ssRef.send({

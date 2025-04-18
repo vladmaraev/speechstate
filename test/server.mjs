@@ -33,6 +33,9 @@ async function run() {
         words =
           "Hello, |this |is |a |<v>|test |of stre|aming |messa|ges |one |by |one!| |[end]";
         break;
+      case "onlydone":
+        words = "[end]";
+        break;
       case "noend":
         words = "Hello, |this |is |a";
         break;
