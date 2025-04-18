@@ -11,7 +11,7 @@ describe("Synthesis test", async () => {
       return {
         ssRef: spawn(speechstate, {
           input: {
-            noPonyfill: true,
+            noPonyfill: false,
             azureRegion: "swedencentral",
             azureCredentials: {
               endpoint:
@@ -186,16 +186,6 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise from stream, go to idle state after timeout", async () => {
-    actor.getSnapshot().context.ssRef.send({
-      type: "SPEAK",
-      value: { utterance: "", stream: "http://localhost:3000/sse/noend" },
-    });
-    await waitForView(actor, "speaking", 1000);
-    const snapshot = await waitForView(actor, "idle", 15_000);
-    expect(snapshot).toBeTruthy();
-  });
-
   test("synthesise from stream, only STREAMING_DONE is sent", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -204,6 +194,16 @@ describe("Synthesis test", async () => {
     await pause(2000);
     const snapshot = actor.getSnapshot().context.ssRef.getSnapshot()
     expect(snapshot.matches({Active: {AsrTtsManager: {Ready: "Idle"}}})).toBeTruthy();
+  });
+
+  test("synthesise from stream, go to idle state after timeout", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/sse/noend" },
+    });
+    await waitForView(actor, "speaking", 1000);
+    const snapshot = await waitForView(actor, "idle", 15_000);
+    expect(snapshot).toBeTruthy();
   });
 
 
