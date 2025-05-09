@@ -51,6 +51,7 @@ async function run() {
               : wordlist[counter] !== "[end]"
                 ? `event: STREAMING_CHUNK\ndata:${wordlist[counter]}\n\n`
                 : `event: STREAMING_DONE\ndata:\n\n`;
+        console.debug(`sent: <${chunk}>`);
         res.write(chunk);
         counter++;
       } else {

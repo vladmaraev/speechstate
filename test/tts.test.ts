@@ -65,14 +65,13 @@ describe("Synthesis test", async () => {
       value: {
         utterance: "Bonjour !  Je suis Henri.",
         voice: "fr-FR-HenriNeural",
-        locale: "fr-FR"
+        locale: "fr-FR",
       },
     });
     const snapshot = await waitForView(actor, "speaking", 500);
     expect(snapshot).toBeTruthy();
   });
 
-  
   test("synthesise, pause, speak again", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -123,7 +122,6 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  
   test("play audio, stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -154,7 +152,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise from stream, use cache", async () => {
+  test.only("synthesise from stream, use cache", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
@@ -186,14 +184,32 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise from stream, only STREAMING_DONE is sent", async () => {
+  test.only("synthesise from stream, only STREAMING_DONE is sent, cache is OFF", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/onlydone" },
     });
     await pause(2000);
-    const snapshot = actor.getSnapshot().context.ssRef.getSnapshot()
-    expect(snapshot.matches({Active: {AsrTtsManager: {Ready: "Idle"}}})).toBeTruthy();
+    const snapshot = actor.getSnapshot().context.ssRef.getSnapshot();
+    expect(
+      snapshot.matches({ Active: { AsrTtsManager: { Ready: "Idle" } } }),
+    ).toBeTruthy();
+  });
+
+  test.only("synthesise from stream, only STREAMING_DONE is sent, cache is ON", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/onlydone",
+        cache: "https://tala-tts-service.azurewebsites.net/api/",
+      },
+    });
+    await pause(2000);
+    const snapshot = actor.getSnapshot().context.ssRef.getSnapshot();
+    expect(
+      snapshot.matches({ Active: { AsrTtsManager: { Ready: "Idle" } } }),
+    ).toBeTruthy();
   });
 
   test("synthesise from stream, go to idle state after timeout", async () => {
@@ -205,7 +221,6 @@ describe("Synthesis test", async () => {
     const snapshot = await waitForView(actor, "idle", 15_000);
     expect(snapshot).toBeTruthy();
   });
-
 
   /** just for the reference (tests couldn't be run on mobile Safari) */
   test.skip("synthesise in chain, fails on mobile safari", async () => {

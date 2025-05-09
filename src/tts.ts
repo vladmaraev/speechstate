@@ -154,25 +154,37 @@ export const ttsMachine = setup({
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
           sendBack({ type: "STREAMING_DONE" });
-          console.debug("[TTS event stream]", { type: "STREAMING_DONE" })
+          console.debug("[TTS event stream]", { type: "STREAMING_DONE" });
           eventSource.close();
         });
         eventSource.addEventListener("STREAMING_RESET", (_event) => {});
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
-          console.debug("[TTS event stream]", { type: "STREAMING_CHUNK", value: event.data })
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_CHUNK",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
-          console.debug("[TTS event stream]", { type: "STREAMING_SET_VOICE", value: event.data })
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_VOICE",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_LOCALE", (event) => {
           sendBack({ type: "STREAMING_SET_LOCALE", value: event.data });
-          console.debug("[TTS event stream]", { type: "STREAMING_SET_LOCALE", value: event.data })
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_LOCALE",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
           sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
-          console.debug("[TTS event stream]", { type: "STREAMING_SET_PERSONA", value: event.data })
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_PERSONA",
+            value: event.data,
+          });
         });
       },
     ),
@@ -475,7 +487,9 @@ export const ttsMachine = setup({
                           always: [
                             {
                               target: "CheckCache",
-                              guard: ({ context }) => !!context.agenda.cache,
+                              guard: ({ context }) =>
+                                !!context.agenda.cache &&
+                                !!context.utteranceFromStream,
                             },
                             { target: "Go" },
                           ],
