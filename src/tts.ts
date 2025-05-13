@@ -153,9 +153,9 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
+          eventSource.close();
           sendBack({ type: "STREAMING_DONE" });
           console.debug("[TTS event stream]", { type: "STREAMING_DONE" });
-          eventSource.close();
         });
         eventSource.addEventListener("STREAMING_RESET", (_event) => {});
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
