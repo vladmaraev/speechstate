@@ -31,7 +31,7 @@ describe("Synthesis test", async () => {
     .getSnapshot()
     .context.ssRef.getSnapshot()
     .context.ttsRef.subscribe((snapshot: any) =>
-      console.log("[test.TTS state]", snapshot.value),
+      console.debug("[test.TTS state]", snapshot.value),
     );
 
   beforeEach(async () => {
@@ -184,7 +184,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream, only STREAMING_DONE is sent, cache is OFF", async () => {
+  test("synthesise from stream, only STREAMING_DONE is sent, cache is OFF", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/onlydone" },
@@ -196,7 +196,19 @@ describe("Synthesis test", async () => {
     ).toBeTruthy();
   });
 
-  test.only("synthesise from stream, only STREAMING_DONE is sent, cache is ON", async () => {
+  test("synthesise from stream, empty chunk and STREAMING_DONE are sent, cache is OFF", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/sse/emptydone" },
+    });
+    await pause(2000);
+    const snapshot = actor.getSnapshot().context.ssRef.getSnapshot();
+    expect(
+      snapshot.matches({ Active: { AsrTtsManager: { Ready: "Idle" } } }),
+    ).toBeTruthy();
+  });
+
+  test("synthesise from stream, only STREAMING_DONE is sent, cache is ON", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {

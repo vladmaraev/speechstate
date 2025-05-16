@@ -33,6 +33,9 @@ async function run() {
         words =
           "Hello, |this |is |a |<v>|test |of stre|aming |messa|ges |one |by |one!| |[end]";
         break;
+      case "emptydone":
+        words = "|[end]";
+        break;
       case "onlydone":
         words = "[end]";
         break;
@@ -42,7 +45,7 @@ async function run() {
     }
     const wordlist = words.split("|");
     const interval = setInterval(() => {
-      if (wordlist[counter]) {
+      if (wordlist[counter] !== undefined) {
         const chunk =
           wordlist[counter] === "<v>"
             ? `event: STREAMING_SET_VOICE\ndata:en-US-EmmaMultilingualNeural\n\n`

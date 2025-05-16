@@ -131,7 +131,7 @@ export const asrMachine = setup({
         sendBack({ type: "READY", value: recognition });
         receive((event: { type: "STOP" }) => {
           if (event.type === "STOP") {
-            console.log("[asr.callback] Receiving STOP");
+            console.debug("[asr.callback] Receiving STOP");
             recognition.abort();
           }
         });

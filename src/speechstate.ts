@@ -229,6 +229,7 @@ const speechstate = setup({
             ASR_NOINPUT: {
               actions: [
                 () => console.debug("[ASR→SpSt] NOINPUT"),
+                () => console.info("%cU】*no input*", "font-weight: bold"),
                 sendParent({ type: "ASR_NOINPUT" }),
               ],
             },
@@ -435,6 +436,13 @@ const speechstate = setup({
                             "[ASR→SpSt] RECOGNISED",
                             (event as any).value,
                             (event as any).nluValue,
+                          ),
+                        ({ event }) =>
+                          console.info(
+                            "%cU】%s",
+                            "font-weight: bold",
+                            (event as any).value[0].utterance,
+                            (event as any).value[0].confidence,
                           ),
                         sendParent(({ event }) => ({
                           type: "RECOGNISED",
