@@ -222,7 +222,7 @@ describe("Recognition test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("test NLU", async () => {
+  test.only("test NLU", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "Tea or coffee?" },

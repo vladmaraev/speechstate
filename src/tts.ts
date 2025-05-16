@@ -153,21 +153,38 @@ export const ttsMachine = setup({
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
         const eventSource = new EventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
-          sendBack({ type: "STREAMING_DONE" });
           eventSource.close();
+          sendBack({ type: "STREAMING_DONE" });
+          console.debug("[TTS event stream]", { type: "STREAMING_DONE" });
         });
         eventSource.addEventListener("STREAMING_RESET", (_event) => {});
         eventSource.addEventListener("STREAMING_CHUNK", (event) => {
           sendBack({ type: "STREAMING_CHUNK", value: event.data });
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_CHUNK",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_VOICE", (event) => {
           sendBack({ type: "STREAMING_SET_VOICE", value: event.data });
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_VOICE",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_LOCALE", (event) => {
           sendBack({ type: "STREAMING_SET_LOCALE", value: event.data });
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_LOCALE",
+            value: event.data,
+          });
         });
         eventSource.addEventListener("STREAMING_SET_PERSONA", (event) => {
           sendBack({ type: "STREAMING_SET_PERSONA", value: event.data });
+          console.debug("[TTS event stream]", {
+            type: "STREAMING_SET_PERSONA",
+            value: event.data,
+          });
         });
       },
     ),
@@ -333,6 +350,12 @@ export const ttsMachine = setup({
                       assign({ agenda: ({ event }) => event.value }),
                       ({ event }) =>
                         console.debug("[TTS] SPEAK:", event.value.utterance),
+                      ({ event }) =>
+                        console.info(
+                          "%cS】%s",
+                          "font-weight: bold",
+                          event.value.utterance,
+                        ),
                     ],
                   },
                 ],
@@ -470,7 +493,9 @@ export const ttsMachine = setup({
                           always: [
                             {
                               target: "CheckCache",
-                              guard: ({ context }) => !!context.agenda.cache,
+                              guard: ({ context }) =>
+                                !!context.agenda.cache &&
+                                !!context.utteranceFromStream,
                             },
                             { target: "Go" },
                           ],
@@ -543,6 +568,13 @@ export const ttsMachine = setup({
                               },
                             },
                             PlayAudio: {
+                              entry: ({ context }) =>
+                                console.info(
+                                  "%cS】%s",
+                                  "font-weight: bold",
+                                  context.utteranceFromStream,
+                                  "[cached]",
+                                ),
                               invoke: {
                                 src: "playAudio",
                                 input: ({ context }) => ({
@@ -584,11 +616,19 @@ export const ttsMachine = setup({
                         },
                         Go: {
                           id: "TtsStreamGo",
-                          entry: ({ context }) =>
-                            console.debug(
-                              "[TTS] SPEAK (not cached): ",
-                              context.utteranceFromStream,
-                            ),
+                          entry: [
+                            ({ context }) =>
+                              console.debug(
+                                "[TTS] SPEAK (not cached): ",
+                                context.utteranceFromStream,
+                              ),
+                            ({ context }) =>
+                              console.info(
+                                "%cS】%s",
+                                "font-weight: bold",
+                                context.utteranceFromStream,
+                              ),
+                          ],
                           invoke: {
                             src: "start",
                             input: ({ context }) => ({
@@ -660,7 +700,6 @@ export const ttsMachine = setup({
                   ],
                 },
                 STOP: {
-                  actions: () => console.log("STOP"),
                   target: "Idle",
                 },
               },
@@ -685,11 +724,19 @@ export const ttsMachine = setup({
                   },
                 },
                 PlayAudio: {
-                  entry: ({ context }) =>
-                    console.debug(
-                      "[TTS] SPEAK (cached): ",
-                      context.utteranceFromStream,
-                    ),
+                  entry: [
+                    ({ context }) =>
+                      console.debug(
+                        "[TTS] SPEAK (cached): ",
+                        context.utteranceFromStream,
+                      ),
+                    ({ context }) =>
+                      console.info(
+                        "%cS】%s",
+                        "font-weight: bold",
+                        context.utteranceFromStream,
+                      ),
+                  ],
                   invoke: {
                     src: "playAudio",
                     input: ({ context }) => ({
