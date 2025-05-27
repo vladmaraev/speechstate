@@ -37,8 +37,10 @@ describe("SpeechState test", async () => {
     await waitForView(actor, "idle", 10000);
   });
 
-  test.only("recognise after new token", async () => {
-    await pause(15_000);
+  test("recognise after new token", async () => {
+    const first_token = actor.getSnapshot().context.ssRef.getSnapshot().context.asrRef.getSnapshot().context.azureAuthorizationToken
+    await pause(7_000);
+    expect(first_token).not.toBe(actor.getSnapshot().context.ssRef.getSnapshot().context.asrRef.getSnapshot().context.azureAuthorizationToken)
     actor.getSnapshot().context.ssRef.send({
       type: "LISTEN",
       // value: {
@@ -46,12 +48,14 @@ describe("SpeechState test", async () => {
       //     "Hello, I speak a rather long sentence which contains many words, up to a paragraph perhaps. So please bear with me.",
       // },
     });
-    const snapshot = await waitForView(actor, "listening", 500);
+    const snapshot = await waitForView(actor, "recognising", 1000);
     expect(snapshot).toBeTruthy();
   });
 
   test("speak after new token", async () => {
-    await pause(15_000);
+    const first_token = actor.getSnapshot().context.ssRef.getSnapshot().context.ttsRef.getSnapshot().context.azureAuthorizationToken
+    await pause(7_000);
+    expect(first_token).not.toBe(actor.getSnapshot().context.ssRef.getSnapshot().context.ttsRef.getSnapshot().context.azureAuthorizationToken)
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
