@@ -861,6 +861,9 @@ export const ttsMachine = setup({
             },
             NEW_TOKEN: {
               target: "Ponyfill",
+              actions: assign(({ event }) => {
+                return { azureAuthorizationToken: event.value };
+              }),
               reenter: true,
             },
           },
