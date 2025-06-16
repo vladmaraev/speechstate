@@ -26,6 +26,8 @@ export interface Settings {
   speechRecognitionEndpointId?: string;
   ttsDefaultVoice?: string;
   ttsLexicon?: string;
+  ttsDefaultFillerDelay?: number;
+  ttsDefaultFiller?: string;
   newTokenInterval?: number;
 }
 
@@ -140,6 +142,8 @@ export interface TTSInit {
   audioContext: AudioContext;
   azureRegion: string;
   ttsDefaultVoice: string;
+  ttsDefaultFillerDelay?: number;
+  ttsDefaultFiller?: string;
   ttsLexicon?: string;
   locale: string;
 }

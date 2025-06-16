@@ -40,7 +40,8 @@ export const ttsMachine = setup({
       return {
         buffer:
           context.buffer.substring(0, spaceIndex) +
-          " um," +
+          " " +
+          context.ttsDefaultFiller +
           context.buffer.substring(spaceIndex),
       };
     }),
@@ -300,6 +301,8 @@ export const ttsMachine = setup({
   context: ({ input }) => ({
     azureAuthorizationToken: input.azureAuthorizationToken,
     ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
+    ttsDefaultFillerDelay: input.ttsDefaultFillerDelay || 500,
+    ttsDefaultFiller: input.ttsDefaultFiller || "um,",
     ttsLexicon: input.ttsLexicon,
     audioContext: input.audioContext,
     azureRegion: input.azureRegion,
@@ -333,10 +336,13 @@ export const ttsMachine = setup({
                     target: "BufferedSpeaker",
                     guard: ({ event }) => !!event.value.stream,
                     actions: assign({
-                      agenda: ({ event }) =>
+                      agenda: ({ context, event }) =>
                         event.value.fillerDelay
                           ? event.value
-                          : { ...event.value, fillerDelay: 500 },
+                          : {
+                              ...event.value,
+                              fillerDelay: context.ttsDefaultFillerDelay,
+                            },
                     }),
                   },
                   {
