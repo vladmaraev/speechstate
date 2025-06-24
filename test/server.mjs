@@ -60,7 +60,7 @@ async function run() {
       } else {
         clearInterval(interval);
       }
-    }, 300);
+    }, 500);
 
     res.on("close", () => {
       clearInterval(interval);
