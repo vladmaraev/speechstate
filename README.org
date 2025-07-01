@@ -33,6 +33,8 @@ Free browser-based spoken dialogue system. Based on [[https://github.com/stately
     speechRecognitionEndpointId?: string;
     ttsDefaultVoice?: string;
     ttsLexicon?: string;
+    ttsDefaultFillerDelay?: number; // defaults to 500 (ms)
+    ttsDefaultFiller?: string; // defaults to "um," 
   }
 #+end_src
 
