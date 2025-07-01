@@ -11,6 +11,8 @@ describe("Synthesis test", async () => {
       return {
         ssRef: spawn(speechstate, {
           input: {
+            ttsDefaultFiller: "um the filler,",
+            ttsDefaultFillerDelay: 100,
             noPonyfill: false,
             azureRegion: "swedencentral",
             azureCredentials: {
@@ -89,7 +91,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise from stream", async () => {
+  test.only("synthesise from stream", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/1" },
@@ -97,6 +99,16 @@ describe("Synthesis test", async () => {
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
   });
+
+  test.only("synthesise from stream; different filler and timeout", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/sse/1", fillerDelay: 100_000 },
+    });
+    const snapshot = await waitForView(actor, "speaking", 1000);
+    expect(snapshot).toBeTruthy();
+  });
+
 
   test("synthesise from stream; stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
@@ -152,7 +164,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream, use cache", async () => {
+  test("synthesise from stream, use cache", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
