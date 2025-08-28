@@ -68,6 +68,46 @@ async function run() {
     });
   });
 
+  let isFaulty = true;
+  app.get("/faulty-sse", (req, res) => {
+    if (isFaulty) {
+      isFaulty = !isFaulty;
+      res.writeHead(500);
+      console.debug(`replied with error 500`);
+      res.flushHeaders();
+      res.end();
+    } else {
+      isFaulty = !isFaulty;
+      res.writeHead(200, {
+        Connection: "keep-alive",
+        "Cache-Control": "no-cache",
+        "Content-Type": "text/event-stream",
+      });
+      res.flushHeaders();
+
+      let counter = 0;
+      let words = "Hello, |the |stream |is |working |after the re|try |[end]";
+      const wordlist = words.split("|");
+      const interval = setInterval(() => {
+        if (wordlist[counter] !== undefined) {
+          const chunk =
+            wordlist[counter] !== "[end]"
+              ? `event: STREAMING_CHUNK\ndata:${wordlist[counter]}\n\n`
+              : `event: STREAMING_DONE\ndata:\n\n`;
+          console.debug(`sent: <${chunk}>`);
+          res.write(chunk);
+          counter++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 500);
+      res.on("close", () => {
+        clearInterval(interval);
+        res.end();
+      });
+    }
+  });
+
   app.listen(3000, () => {
     console.log(`SSE server listening on port ${3000}`);
   });

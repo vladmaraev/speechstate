@@ -11,7 +11,7 @@ describe("Synthesis test", async () => {
       return {
         ssRef: spawn(speechstate, {
           input: {
-            ttsDefaultFiller: "um the filler,",
+            ttsDefaultFiller: "um,",
             ttsDefaultFillerDelay: 100,
             noPonyfill: false,
             azureRegion: "swedencentral",
@@ -91,7 +91,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream", async () => {
+  test("synthesise from stream", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/1" },
@@ -100,7 +100,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream; different filler and timeout", async () => {
+  test("synthesise from stream; different filler and timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/sse/1", fillerDelay: 100_000 },
@@ -245,6 +245,16 @@ describe("Synthesis test", async () => {
     const snapshot = await waitForView(actor, "idle", 15_000);
     expect(snapshot).toBeTruthy();
   });
+
+  test.only("synthesise from faulty stream", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: { utterance: "", stream: "http://localhost:3000/faulty-sse" },
+    });
+    const snapshot = await waitForView(actor, "speaking", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
 
   /** just for the reference (tests couldn't be run on mobile Safari) */
   test.skip("synthesise in chain, fails on mobile safari", async () => {
