@@ -6442,6 +6442,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"reconnecting-eventsource@npm:^1.6.4":
+  version: 1.6.4
+  resolution: "reconnecting-eventsource@npm:1.6.4"
+  checksum: e8735901ab7f4c0f25e4f209e172d7a9e8217d5c2bb4094f31e5c569b1b86913515006b6c5e5040d6441d9a71e6621a8ba3e1cdac1854ca5a7cbb64061b75302
+  languageName: node
+  linkType: hard
+
 "regenerator-runtime@npm:^0.14.0":
   version: 0.14.1
   resolution: "regenerator-runtime@npm:0.14.1"
@@ -6958,6 +6965,7 @@ __metadata:
     jest-environment-jsdom: ^29.5.0
     microsoft-cognitiveservices-speech-sdk: ^1.43.1
     playwright: ^1.48.2
+    reconnecting-eventsource: ^1.6.4
     ts-jest: ^29.1.0
     typescript: ^5.8.2
     vite: ^5.0.11

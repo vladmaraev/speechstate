@@ -1,7 +1,7 @@
 {
   "name": "speechstate",
   "license": "GPL-3.0",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "homepage": "http://localhost/speechstate",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,6 +10,7 @@
   ],
   "dependencies": {
     "microsoft-cognitiveservices-speech-sdk": "^1.43.1",
+    "reconnecting-eventsource": "^1.6.4",
     "web-speech-cognitive-services": "^8.1.1",
     "xstate": "^5.17.4"
   },

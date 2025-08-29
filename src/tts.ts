@@ -10,6 +10,8 @@ import {
   raise,
 } from "xstate";
 
+import ReconnectingEventSource from "reconnecting-eventsource";
+
 import {
   Agenda,
   TTSInit,
@@ -152,7 +154,7 @@ export const ttsMachine = setup({
     ),
     createEventsFromStream: fromCallback(
       ({ sendBack, input }: { sendBack: any; input: Agenda }) => {
-        const eventSource = new EventSource(input.stream);
+        const eventSource = new ReconnectingEventSource(input.stream);
         eventSource.addEventListener("STREAMING_DONE", (_event) => {
           eventSource.close();
           sendBack({ type: "STREAMING_DONE" });
