@@ -246,12 +246,25 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from faulty stream", async () => {
+  test("synthesise from faulty stream", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/faulty-sse" },
     });
     const snapshot = await waitForView(actor, "speaking", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test.only("synthesise with barge-in", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Hello! You can interrupt me whenever you like.",
+        voice: "en-US-EmmaMultilingualNeural",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
     expect(snapshot).toBeTruthy();
   });
 

@@ -16,6 +16,7 @@ export interface AzureLanguageCredentials {
 }
 
 export interface Settings {
+  bargeIn?: RecogniseParameters;
   locale?: string;
   noPonyfill?: boolean;
   azureCredentials?: string | AzureSpeechCredentials;
@@ -33,6 +34,7 @@ export interface Settings {
 
 export interface Agenda {
   utterance: string;
+  bargeIn?: RecogniseParameters;
   locale?: string;
   voice?: string;
   stream?: string;
@@ -61,7 +63,8 @@ type SSEventExtIn =
   | { type: "CONTROL" }
   | { type: "STOP" }
   | { type: "SPEAK"; value: Agenda }
-  | { type: "LISTEN"; value: RecogniseParameters };
+  | { type: "LISTEN"; value: RecogniseParameters }
+  | { type: "UPDATE_ASR_PARAMETERS"; value: RecogniseParameters };
 
 type SSEventExtOut =
   | { type: "ASR_NOINPUT" }
@@ -105,7 +108,8 @@ export type ASREvent =
   | { type: "STOP" }
   | { type: "LISTEN_COMPLETE" }
   | { type: "RESULT"; value: Hypothesis[] }
-  | { type: "FINAL_RESULT" };
+  | { type: "FINAL_RESULT" }
+  | { type: "START_NOINPUT_TIMEOUT" };
 
 export interface ASRContext extends ASRInit {
   result?: Hypothesis[];
