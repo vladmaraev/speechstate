@@ -202,10 +202,10 @@ export const asrMachine = setup({
             params: event.value,
           })),
         },
-        UPDATE_ASR_PARAMS: {
+        UPDATE_ASR_PARAMETERS: {
           actions: [
             ({ event }) =>
-              console.debug("[ASR] UPDATE_ASR_PARAMS", event.value),
+              console.debug("[ASR] UPDATE_ASR_PARAMETERS", event.value),
             assign(({ event }) => ({
               params: event.value,
             })),

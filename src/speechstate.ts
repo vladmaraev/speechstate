@@ -320,8 +320,8 @@ const speechstate = setup({
                     SPEAK: [
                       {
                         target: "Speaking",
-                        actions: assign(({ event }) => ({
-                          bargeIn: event.value.bargeIn,
+                        actions: assign(({ event, context }) => ({
+                          bargeIn: event.value.bargeIn || context.settings.bargeIn,
                         })),
                       },
                     ],
@@ -372,7 +372,7 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS"),
                         ({ context, event }) =>
-                          context.asrRef!.send({
+                          context.asrRef.send({
                             type: "UPDATE_ASR_PARAMETERS",
                             value: event.value,
                           }),
@@ -388,7 +388,7 @@ const speechstate = setup({
                             ),
                           sendParent({ type: "SPEAK_COMPLETE" }),
                           ({ context }) =>
-                            context.asrRef!.send({
+                            context.asrRef.send({
                               type: "START_NOINPUT_TIMEOUT",
                             }),
                         ],
