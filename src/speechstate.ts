@@ -5,6 +5,7 @@ import {
   sendParent,
   stopChild,
   sendTo,
+  assertEvent,
 } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
@@ -25,7 +26,7 @@ interface SSContext {
   asrRef?: any;
   ttsRef?: any;
   azureAuthorizationToken?: string;
-  bargeIn?: RecogniseParameters;
+  bargeIn: false | RecogniseParameters;
 }
 
 const speechstate = setup({
@@ -317,14 +318,17 @@ const speechstate = setup({
                   meta: { view: "idle" },
                   on: {
                     LISTEN: { target: "WaitForRecogniser" },
-                    SPEAK: [
-                      {
-                        target: "Speaking",
-                        actions: assign(({ event, context }) => ({
-                          bargeIn: event.value.bargeIn || context.settings.bargeIn,
-                        })),
-                      },
-                    ],
+                    SPEAK: {
+                      target: "Speaking",
+                      /**
+                       * SPEAK can prevent barge-in, otherwise it is
+                       *  taken from the context (settings overriden by SPEAK value)
+                       */
+                      actions: assign(({ event, context }) => ({
+                        bargeIn:
+                          event.value.bargeIn ?? context.settings.bargeIn,
+                      })),
+                    },
                   },
                 },
                 Speaking: {
@@ -406,18 +410,20 @@ const speechstate = setup({
                     Start: {
                       meta: { view: "idle" },
                       entry: [
-                        ({ event }) =>
-                          console.debug(
-                            "[SpSt→TTS] SPEAK",
-                            (event as any).value,
-                          ),
-                        ({ context, event }) =>
+                        ({ event }) => {
+                          assertEvent(event, "SPEAK");
+                          console.debug("[SpSt→TTS] SPEAK", event.value);
+                        },
+                        ({ context, event }) => {
+                          assertEvent(event, "SPEAK");
                           context.ttsRef.send({
                             type: "SPEAK",
-                            value: (event as any).value,
-                          }),
-                        ({ context }) =>
-                          console.debug("[SpSt→TTS] SPEAK context", context),
+                            value: {
+                              ...event.value,
+                              ...{ bargeIn: context.bargeIn },
+                            },
+                          });
+                        },
                       ],
                       on: {
                         TTS_STARTED: [

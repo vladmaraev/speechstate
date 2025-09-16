@@ -16,7 +16,7 @@ export interface AzureLanguageCredentials {
 }
 
 export interface Settings {
-  bargeIn?: RecogniseParameters;
+  bargeIn: undefined | false | RecogniseParameters;
   locale?: string;
   noPonyfill?: boolean;
   azureCredentials?: string | AzureSpeechCredentials;
@@ -34,7 +34,7 @@ export interface Settings {
 
 export interface Agenda {
   utterance: string;
-  bargeIn?: RecogniseParameters;
+  bargeIn: undefined | false | RecogniseParameters;
   locale?: string;
   voice?: string;
   stream?: string;
