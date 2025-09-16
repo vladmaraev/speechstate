@@ -6973,7 +6973,7 @@ __metadata:
     web-speech-cognitive-services: ^8.1.1
     webdriverio: ^9.2.8
     ws: ^8.16.0
-    xstate: ^5.17.4
+    xstate: ^5.21.0
   languageName: unknown
   linkType: soft
 
@@ -8098,10 +8098,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"xstate@npm:^5.17.4":
-  version: 5.18.1
-  resolution: "xstate@npm:5.18.1"
-  checksum: 5933575ae536ec13eb781f7fa3fb9ef360f56612ddbb903d26135a01e04fb764c67afe62394c1635e9bb0262fe111f7fecaccff69b781d705a163629dd464fb3
+"xstate@npm:^5.21.0":
+  version: 5.21.0
+  resolution: "xstate@npm:5.21.0"
+  checksum: 01bd7f9a8ac2fcff846af3255203f656543f9931d9114d4f6533289ff7a3f7cf2645cff4f759d79225b675d8add4f0696f13274b95be15f696b61e5f27559443
   languageName: node
   linkType: hard
 
