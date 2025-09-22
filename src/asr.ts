@@ -28,7 +28,7 @@ export const asrMachine = setup({
   },
   delays: {
     noinputTimeout: ({ context }) =>
-      (context.params || {}).noInputTimeout || context.asrDefaultNoInputTimeout,
+      (context.params || {}).noInputTimeout ?? context.asrDefaultNoInputTimeout,
   },
   actions: {
     raise_noinput_after_timeout: raise(
@@ -190,6 +190,15 @@ export const asrMachine = setup({
         return { azureAuthorizationToken: event.value };
       }),
     },
+    UPDATE_ASR_PARAMETERS: {
+      actions: [
+        ({ event }) =>
+          console.debug("[ASR] UPDATE_ASR_PARAMETERS", event.value),
+        assign(({ event }) => ({
+          params: event.value,
+        })),
+      ],
+    },
   },
   states: {
     Fail: {},
@@ -201,15 +210,6 @@ export const asrMachine = setup({
           actions: assign(({ event }) => ({
             params: event.value,
           })),
-        },
-        UPDATE_ASR_PARAMETERS: {
-          actions: [
-            ({ event }) =>
-              console.debug("[ASR] UPDATE_ASR_PARAMETERS", event.value),
-            assign(({ event }) => ({
-              params: event.value,
-            })),
-          ],
         },
       },
     },

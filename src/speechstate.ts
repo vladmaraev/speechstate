@@ -312,6 +312,16 @@ const speechstate = setup({
                     })),
                   ],
                 },
+                UPDATE_ASR_PARAMETERS: {
+                  actions: [
+                    () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS"),
+                    ({ context, event }) =>
+                      context.asrRef.send({
+                        type: "UPDATE_ASR_PARAMETERS",
+                        value: event.value,
+                      }),
+                  ],
+                },
               },
               states: {
                 Idle: {
@@ -372,19 +382,10 @@ const speechstate = setup({
                         })),
                       ],
                     },
-                    UPDATE_ASR_PARAMETERS: {
-                      actions: [
-                        () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS"),
-                        ({ context, event }) =>
-                          context.asrRef.send({
-                            type: "UPDATE_ASR_PARAMETERS",
-                            value: event.value,
-                          }),
-                      ],
-                    },
                     SPEAK_COMPLETE: [
                       {
                         guard: { type: "bargein_enabled" },
+                        target: ".Proceed.Recognising",
                         actions: [
                           () =>
                             console.debug(
@@ -458,13 +459,14 @@ const speechstate = setup({
                       },
                     },
                     Proceed: {
-                      meta: { view: "speaking" },
+                      initial: "NotInterrupted",
                       entry: [
                         () => console.debug("[TTS→SpSt] TTS_STARTED"),
                         sendParent({ type: "TTS_STARTED" }),
                       ],
                       on: {
                         STARTSPEECH: {
+                          target: ".Recognising",
                           actions: [
                             () =>
                               console.debug(
@@ -482,6 +484,14 @@ const speechstate = setup({
                                 type: "CONTROL",
                               }),
                           ],
+                        },
+                      },
+                      states: {
+                        NotInterrupted: {
+                          meta: { view: "speaking" },
+                        },
+                        Recognising: {
+                          meta: { view: "recognising" },
                         },
                       },
                     },

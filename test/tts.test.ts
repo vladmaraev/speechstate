@@ -255,12 +255,26 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise with barge-in", async () => {
+  test("synthesise with barge-in", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
         utterance: "Hello! You can interrupt me whenever you like.",
         voice: "en-US-EmmaMultilingualNeural",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+    test.only("synthesise with barge-in", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        voice: "en-US-EmmaMultilingualNeural",
+        stream: "http://localhost:3000/sse/1",
         bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
       },
     });
