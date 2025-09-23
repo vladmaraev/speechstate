@@ -5,6 +5,7 @@ import {
   sendParent,
   stopChild,
   sendTo,
+  assertEvent,
 } from "xstate";
 import { ttsMachine } from "./tts";
 import { asrMachine } from "./asr";
@@ -25,6 +26,7 @@ interface SSContext {
   asrRef?: any;
   ttsRef?: any;
   azureAuthorizationToken?: string;
+  bargeIn: false | RecogniseParameters;
 }
 
 const speechstate = setup({
@@ -37,7 +39,7 @@ const speechstate = setup({
     audioContext: fromPromise<AudioContext, void>(async () => {
       const audioContext = new AudioContext();
       navigator.mediaDevices
-        .getUserMedia({ audio: true })
+        .getUserMedia({ audio: { autoGainControl: false } })
         .then(function (stream) {
           audioContext.createMediaStreamSource(stream);
         });
@@ -85,15 +87,23 @@ const speechstate = setup({
         });
       },
     }),
+    "tts.stop": ({ context }) =>
+      context.ttsRef!.send({
+        type: "STOP",
+      }),
   },
   delays: {
     NEW_TOKEN_INTERVAL: ({ context }) => {
       return context.settings.newTokenInterval || 300_000;
     },
   },
+  guards: {
+    bargein_enabled: ({ context }) => !!context.bargeIn,
+  },
 }).createMachine({
   context: ({ input }) => ({
     settings: input,
+    bargeIn: input.bargeIn,
   }),
   id: "speechstate",
   initial: "Active",
@@ -279,16 +289,56 @@ const speechstate = setup({
                 () => console.debug("[SpSt] All ready"),
                 sendParent({ type: "ASRTTS_READY" }),
               ],
+              on: {
+                RECOGNISED: {
+                  actions: [
+                    ({ event }) =>
+                      console.debug(
+                        "[ASR→SpSt] RECOGNISED",
+                        (event as any).value,
+                        (event as any).nluValue,
+                      ),
+                    ({ event }) =>
+                      console.info(
+                        "%cU】%s",
+                        "font-weight: bold",
+                        (event as any).value[0].utterance,
+                        (event as any).value[0].confidence,
+                      ),
+                    sendParent(({ event }) => ({
+                      type: "RECOGNISED",
+                      value: (event as any).value,
+                      nluValue: (event as any).nluValue,
+                    })),
+                  ],
+                },
+                UPDATE_ASR_PARAMETERS: {
+                  actions: [
+                    () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS *"),
+                    ({ context, event }) =>
+                      context.asrRef.send({
+                        type: "UPDATE_ASR_PARAMETERS",
+                        value: event.value,
+                      }),
+                  ],
+                },
+              },
               states: {
                 Idle: {
                   meta: { view: "idle" },
                   on: {
                     LISTEN: { target: "WaitForRecogniser" },
-                    SPEAK: [
-                      {
-                        target: "Speaking",
-                      },
-                    ],
+                    SPEAK: {
+                      target: "Speaking",
+                      /**
+                       * SPEAK can prevent barge-in, otherwise it is
+                       *  taken from the context (settings overriden by SPEAK value)
+                       */
+                      actions: assign(({ event, context }) => ({
+                        bargeIn:
+                          event.value.bargeIn ?? context.settings.bargeIn,
+                      })),
+                    },
                   },
                 },
                 Speaking: {
@@ -332,42 +382,99 @@ const speechstate = setup({
                         })),
                       ],
                     },
-                    SPEAK_COMPLETE: {
-                      target: "Idle",
-                      actions: [
-                        () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
-                        sendParent({ type: "SPEAK_COMPLETE" }),
-                      ],
-                    },
+                    SPEAK_COMPLETE: [
+                      {
+                        guard: { type: "bargein_enabled" },
+                        target: ".Proceed.Recognising",
+                        actions: [
+                          () =>
+                            console.debug(
+                              "[TTS→SpSt] SPEAK_COMPLETE (barge-in)",
+                            ),
+                          sendParent({ type: "SPEAK_COMPLETE" }),
+                          ({ context }) =>
+                            context.asrRef.send({
+                              type: "START_NOINPUT_TIMEOUT",
+                            }),
+                        ],
+                      },
+                      {
+                        target: "Idle",
+                        actions: [
+                          () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
+                          sendParent({ type: "SPEAK_COMPLETE" }),
+                        ],
+                      },
+                    ],
                   },
                   states: {
                     Start: {
                       meta: { view: "idle" },
                       entry: [
-                        ({ event }) =>
-                          console.debug(
-                            "[SpSt→TTS] SPEAK",
-                            (event as any).value,
-                          ),
-                        ({ context, event }) =>
+                        ({ event }) => {
+                          assertEvent(event, "SPEAK");
+                          console.debug("[SpSt→TTS] SPEAK", event.value);
+                        },
+                        ({ context, event }) => {
+                          assertEvent(event, "SPEAK");
                           context.ttsRef.send({
                             type: "SPEAK",
-                            value: (event as any).value,
+                            value: {
+                              ...event.value,
+                              ...{ bargeIn: context.bargeIn },
+                            },
+                          });
+                        },
+                      ],
+                      on: {
+                        TTS_STARTED: [
+                          {
+                            target: "StartASR",
+                            guard: { type: "bargein_enabled" },
+                          },
+                          {
+                            target: "Proceed",
+                          },
+                        ],
+                      },
+                    },
+                    StartASR: {
+                      meta: { view: "speaking" },
+                      entry: [
+                        () => console.debug("[SpSt→ASR] START"),
+                        ({ context }) =>
+                          context.asrRef.send({
+                            type: "START",
+                            value: context.bargeIn,
                           }),
                       ],
                       on: {
-                        TTS_STARTED: {
+                        ASR_STARTED: {
                           target: "Proceed",
                           actions: [
-                            () => console.debug("[TTS→SpSt] TTS_STARTED"),
-                            sendParent({ type: "TTS_STARTED" }),
+                            () => console.debug("[ASR→SpSt] ASR_STARTED"),
+                            sendParent({ type: "ASR_STARTED" }),
                           ],
                         },
                       },
                     },
                     Proceed: {
-                      meta: { view: "speaking" },
+                      initial: "NotInterrupted",
+                      entry: [
+                        () => console.debug("[TTS→SpSt] TTS_STARTED"),
+                        sendParent({ type: "TTS_STARTED" }),
+                      ],
                       on: {
+                        STARTSPEECH: {
+                          target: ".Recognising",
+                          actions: [
+                            () =>
+                              console.debug(
+                                "[ASR→SpSt] STARTSPEECH (barge-in)",
+                              ),
+                            { type: "tts.stop" },
+                          ],
+                        },
                         CONTROL: {
                           target: "Paused",
                           actions: [
@@ -377,6 +484,14 @@ const speechstate = setup({
                                 type: "CONTROL",
                               }),
                           ],
+                        },
+                      },
+                      states: {
+                        NotInterrupted: {
+                          meta: { view: "speaking" },
+                        },
+                        Recognising: {
+                          meta: { view: "recognising" },
                         },
                       },
                     },
@@ -414,6 +529,10 @@ const speechstate = setup({
                       actions: [
                         () => console.debug("[ASR→SpSt] ASR_STARTED"),
                         sendParent({ type: "ASR_STARTED" }),
+                        ({ context }) =>
+                          context.asrRef.send({
+                            type: "START_NOINPUT_TIMEOUT",
+                          }),
                       ],
                     },
                   },
@@ -429,28 +548,6 @@ const speechstate = setup({
                           context.asrRef.send({
                             type: "STOP",
                           }),
-                      ],
-                    },
-                    RECOGNISED: {
-                      actions: [
-                        ({ event }) =>
-                          console.debug(
-                            "[ASR→SpSt] RECOGNISED",
-                            (event as any).value,
-                            (event as any).nluValue,
-                          ),
-                        ({ event }) =>
-                          console.info(
-                            "%cU】%s",
-                            "font-weight: bold",
-                            (event as any).value[0].utterance,
-                            (event as any).value[0].confidence,
-                          ),
-                        sendParent(({ event }) => ({
-                          type: "RECOGNISED",
-                          value: (event as any).value,
-                          nluValue: (event as any).nluValue,
-                        })),
                       ],
                     },
                   },

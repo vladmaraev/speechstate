@@ -236,6 +236,7 @@ export const ttsMachine = setup({
       let utterance: SpeechSynthesisUtterance;
       const wsaTTS = input.wsaTTS;
       if (!input.utterance.match(/[\p{L}\p{N}]/giu)) {
+        sendBack({ type: "TTS_STARTED" });
         console.warn(
           "[TTS] SPEAK: (utterance doesn't contain alphanumeric characters)",
         );
