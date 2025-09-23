@@ -282,7 +282,21 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesis of an empty string -> jump to recognition", async () => {
+  test.only("synthesise from stream, use cache, bargein on", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/1",
+        cache: "https://tala-tts-service.azurewebsites.net/api/",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "speaking", 2000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("synthesis of an empty string -> jump to recognition", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
