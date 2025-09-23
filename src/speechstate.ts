@@ -314,7 +314,7 @@ const speechstate = setup({
                 },
                 UPDATE_ASR_PARAMETERS: {
                   actions: [
-                    () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS"),
+                    () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS *"),
                     ({ context, event }) =>
                       context.asrRef.send({
                         type: "UPDATE_ASR_PARAMETERS",
