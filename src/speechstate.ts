@@ -309,6 +309,7 @@ const speechstate = setup({
                       type: "RECOGNISED",
                       value: (event as any).value,
                       nluValue: (event as any).nluValue,
+                      bargeIn: false,
                     })),
                   ],
                 },
@@ -349,6 +350,30 @@ const speechstate = setup({
                   },
                   initial: "Start",
                   on: {
+                    RECOGNISED: {
+                      actions: [
+                        ({ event }) =>
+                          console.debug(
+                            "[ASR→SpSt] RECOGNISED",
+                            (event as any).value,
+                            (event as any).nluValue,
+                          ),
+                        ({ event }) =>
+                          console.info(
+                            "%cU】%s",
+                            "font-weight: bold",
+                            (event as any).value[0].utterance,
+                            (event as any).value[0].confidence,
+                            "(barge-in)",
+                          ),
+                        sendParent(({ event }) => ({
+                          type: "RECOGNISED",
+                          value: (event as any).value,
+                          nluValue: (event as any).nluValue,
+                          bargeIn: true,
+                        })),
+                      ],
+                    },
                     STOP: {
                       target: "#speechstate.Stopped",
                       actions: [
@@ -389,7 +414,7 @@ const speechstate = setup({
                         actions: [
                           () =>
                             console.debug(
-                              "[TTS→SpSt] SPEAK_COMPLETE (barge-in)",
+                              "[TTS→SpSt] SPEAK_COMPLETE",
                             ),
                           sendParent({ type: "SPEAK_COMPLETE" }),
                           ({ context }) =>

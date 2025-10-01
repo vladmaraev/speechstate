@@ -73,7 +73,12 @@ type SSEventExtOut =
   | { type: "TTS_STARTED" }
   | { type: "SPEAK_COMPLETE" }
   | { type: "LISTEN_COMPLETE" }
-  | { type: "RECOGNISED"; value: Hypothesis[]; nluValue?: any }
+  | {
+      type: "RECOGNISED";
+      value: Hypothesis[];
+      nluValue?: any;
+      bargeIn: boolean;
+    }
   | { type: "VISEME"; value: any }
   | { type: "STREAMING_SET_PERSONA"; value: string };
 
