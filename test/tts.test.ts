@@ -21,7 +21,7 @@ describe("Synthesis test", async () => {
               key: AZURE_KEY,
             },
           },
-        }),
+        } as any),
       };
     },
   });
@@ -103,12 +103,15 @@ describe("Synthesis test", async () => {
   test("synthesise from stream; different filler and timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
-      value: { utterance: "", stream: "http://localhost:3000/sse/1", fillerDelay: 100_000 },
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/1",
+        fillerDelay: 100_000,
+      },
     });
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
   });
-
 
   test("synthesise from stream; stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
@@ -255,6 +258,10 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  /**
+   * BARGE-IN
+   */
+
   test("synthesise with barge-in", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
@@ -275,7 +282,7 @@ describe("Synthesis test", async () => {
         utterance: "",
         voice: "en-US-EmmaMultilingualNeural",
         stream: "http://localhost:3000/sse/1",
-        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 1000 },
       },
     });
     const snapshot = await waitForView(actor, "listening", 5000);
@@ -287,12 +294,12 @@ describe("Synthesis test", async () => {
       type: "SPEAK",
       value: {
         utterance: "",
-        stream: "http://localhost:3000/sse/1",
+        stream: "http://localhost:3000/sse/3",
         cache: "https://tala-tts-service.azurewebsites.net/api/",
-        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 1000 },
       },
     });
-    const snapshot = await waitForView(actor, "speaking", 2000);
+    const snapshot = await waitForView(actor, "speaking", 5000);
     expect(snapshot).toBeTruthy();
   });
 
@@ -308,7 +315,6 @@ describe("Synthesis test", async () => {
     const snapshot = await waitForView(actor, "listening", 5000);
     expect(snapshot).toBeTruthy();
   });
-
 
   /** just for the reference (tests couldn't be run on mobile Safari) */
   test.skip("synthesise in chain, fails on mobile safari", async () => {

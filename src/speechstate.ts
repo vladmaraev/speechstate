@@ -412,10 +412,7 @@ const speechstate = setup({
                         guard: { type: "bargein_enabled" },
                         target: ".Proceed.Recognising",
                         actions: [
-                          () =>
-                            console.debug(
-                              "[TTS→SpSt] SPEAK_COMPLETE",
-                            ),
+                          () => console.debug("[TTS→SpSt] SPEAK_COMPLETE"),
                           sendParent({ type: "SPEAK_COMPLETE" }),
                           ({ context }) =>
                             context.asrRef.send({
@@ -517,6 +514,35 @@ const speechstate = setup({
                         },
                         Recognising: {
                           meta: { view: "recognising" },
+                          on: {
+                            STARTSPEECH: {
+                              actions: () =>
+                                console.debug("[ASR→SpSt] STARTSPEECH"),
+                            },
+                            RECOGNISED: {
+                              actions: [
+                                ({ event }) =>
+                                  console.debug(
+                                    "[ASR→SpSt] RECOGNISED",
+                                    (event as any).value,
+                                    (event as any).nluValue,
+                                  ),
+                                ({ event }) =>
+                                  console.info(
+                                    "%cU】%s",
+                                    "font-weight: bold",
+                                    (event as any).value[0].utterance,
+                                    (event as any).value[0].confidence,
+                                  ),
+                                sendParent(({ event }) => ({
+                                  type: "RECOGNISED",
+                                  value: (event as any).value,
+                                  nluValue: (event as any).nluValue,
+                                  bargeIn: true,
+                                })),
+                              ],
+                            },
+                          },
                         },
                       },
                     },
