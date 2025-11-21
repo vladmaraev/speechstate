@@ -505,6 +505,11 @@ const speechstate = setup({
                               context.ttsRef.send({
                                 type: "CONTROL",
                               }),
+                            () => console.debug("[SpSt→ASR] CONTROL"),
+                            ({ context }) =>
+                              context.asrRef.send({
+                                type: "CONTROL",
+                              }),
                           ],
                         },
                       },
@@ -556,6 +561,11 @@ const speechstate = setup({
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
                               context.ttsRef.send({
+                                type: "CONTROL",
+                              }),
+                            () => console.debug("[SpSt→ASR] CONTROL"),
+                            ({ context }) =>
+                              context.asrRef.send({
                                 type: "CONTROL",
                               }),
                           ],

@@ -78,11 +78,11 @@ describe("Synthesis test", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
-        utterance: "Hello there!",
+        utterance: "Hello there my dear friend!",
       },
     });
     await waitForView(actor, "speaking", 500);
-    await pause(500);
+    await pause(2000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
     await pause(1000);
@@ -262,7 +262,7 @@ describe("Synthesis test", async () => {
    * BARGE-IN
    */
 
-  test("synthesise with barge-in", async () => {
+  test("barge-in: synthesise", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
@@ -275,7 +275,26 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test("synthesise with barge-in from stream", async () => {
+  test.only("barge-in: synthesise, pause, speak again", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Hello there my dear friend!",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    await waitForView(actor, "speaking", 500);
+    await pause(2000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "speaking-paused", 3000);
+    await pause(1000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+
+  test("barge-in: synthesise from stream", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
@@ -289,7 +308,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from stream, use cache, bargein on", async () => {
+  test("barge-in: synthesise from stream, use cache", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
@@ -303,6 +322,10 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  /**
+   * --
+   */
+  
   test("synthesis of an empty string -> jump to recognition", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
