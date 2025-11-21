@@ -514,6 +514,7 @@ const speechstate = setup({
                         },
                       },
                       states: {
+                        hist: { type: "history" },
                         NotInterrupted: {
                           meta: { view: "speaking" },
                         },
@@ -556,7 +557,7 @@ const speechstate = setup({
                       on: {
                         SPEAK_COMPLETE: {},
                         CONTROL: {
-                          target: "Proceed",
+                          target: "Proceed.hist",
                           actions: [
                             () => console.debug("[SpSt→TTS] CONTROL"),
                             ({ context }) =>
