@@ -28,7 +28,7 @@ export const asrMachine = setup({
   },
   delays: {
     noinputTimeout: ({ context }) =>
-      (context.params || {}).noInputTimeout || context.asrDefaultNoInputTimeout,
+      (context.params || {}).noInputTimeout ?? context.asrDefaultNoInputTimeout,
   },
   actions: {
     raise_noinput_after_timeout: raise(
@@ -190,6 +190,15 @@ export const asrMachine = setup({
         return { azureAuthorizationToken: event.value };
       }),
     },
+    UPDATE_ASR_PARAMETERS: {
+      actions: [
+        ({ event }) =>
+          console.debug("[ASR] UPDATE_ASR_PARAMETERS", event.value),
+        assign(({ event }) => ({
+          params: event.value,
+        })),
+      ],
+    },
   },
   states: {
     Fail: {},
@@ -229,10 +238,13 @@ export const asrMachine = setup({
           },
           {
             target: ".WaitToStop",
-            actions: sendParent(({ context }) => ({
-              type: "RECOGNISED",
-              value: context.result,
-            })),
+            actions: [
+              () => console.debug("[ASR] RECOGNISED"),
+              sendParent(({ context }) => ({
+                type: "RECOGNISED",
+                value: context.result,
+              })),
+            ],
           },
         ],
         RESULT: {
@@ -269,14 +281,36 @@ export const asrMachine = setup({
           },
         },
         NoInput: {
-          entry: { type: "raise_noinput_after_timeout" },
+          initial: "Wait",
           on: {
             STARTSPEECH: {
               target: "InProgress",
-              actions: cancel("completeTimeout"),
+              actions: [
+                sendParent({ type: "STARTSPEECH" }),
+                cancel("completeTimeout"),
+              ],
             },
           },
           exit: { type: "cancel_noinput_timeout" },
+          states: {
+            /*
+             * Wait until system stops speaking (in barge-in mode)
+             */
+            Wait: {
+              on: { START_NOINPUT_TIMEOUT: "ApplyNoInputTimeout" },
+            },
+            ApplyNoInputTimeout: {
+              entry: [
+                ({ context }) =>
+                  console.debug(
+                    "[ASR] START_NOINPUT_TIMEOUT",
+                    context.params.noInputTimeout ??
+                      context.asrDefaultNoInputTimeout,
+                  ),
+                { type: "raise_noinput_after_timeout" },
+              ],
+            },
+          },
         },
         InProgress: {
           entry: () => console.debug("[ASR] in progress"),

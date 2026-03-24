@@ -21,7 +21,7 @@ describe("Synthesis test", async () => {
               key: AZURE_KEY,
             },
           },
-        }),
+        } as any),
       };
     },
   });
@@ -78,11 +78,11 @@ describe("Synthesis test", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
-        utterance: "Hello there!",
+        utterance: "Hello there my dear friend!",
       },
     });
     await waitForView(actor, "speaking", 500);
-    await pause(500);
+    await pause(2000);
     actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
     await waitForView(actor, "speaking-paused", 3000);
     await pause(1000);
@@ -103,12 +103,15 @@ describe("Synthesis test", async () => {
   test("synthesise from stream; different filler and timeout", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
-      value: { utterance: "", stream: "http://localhost:3000/sse/1", fillerDelay: 100_000 },
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/1",
+        fillerDelay: 100_000,
+      },
     });
     const snapshot = await waitForView(actor, "speaking", 1000);
     expect(snapshot).toBeTruthy();
   });
-
 
   test("synthesise from stream; stop and restart on CONTROL", async () => {
     actor.getSnapshot().context.ssRef.send({
@@ -246,7 +249,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("synthesise from faulty stream", async () => {
+  test("synthesise from faulty stream", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: { utterance: "", stream: "http://localhost:3000/faulty-sse" },
@@ -255,6 +258,86 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
+  /**
+   * BARGE-IN
+   */
+
+  test("barge-in: synthesise", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Hello! You can interrupt me whenever you like.",
+        voice: "en-US-EmmaMultilingualNeural",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test.only("barge-in: synthesise, pause, speak again", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "Hello there my dear friend!",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    await waitForView(actor, "speaking", 500);
+    await pause(2000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    await waitForView(actor, "speaking-paused", 3000);
+    await pause(1000);
+    actor.getSnapshot().context.ssRef.send({ type: "CONTROL" });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+
+  test("barge-in: synthesise from stream", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        voice: "en-US-EmmaMultilingualNeural",
+        stream: "http://localhost:3000/sse/1",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 1000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  test("barge-in: synthesise from stream, use cache", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        stream: "http://localhost:3000/sse/3",
+        cache: "https://tala-tts-service.azurewebsites.net/api/",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 1000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "speaking", 5000);
+    expect(snapshot).toBeTruthy();
+  });
+
+  /**
+   * --
+   */
+  
+  test("synthesis of an empty string -> jump to recognition", async () => {
+    actor.getSnapshot().context.ssRef.send({
+      type: "SPEAK",
+      value: {
+        utterance: "",
+        voice: "en-US-EmmaMultilingualNeural",
+        bargeIn: { noInputTimeout: 5000, completeTimeout: 5000 },
+      },
+    });
+    const snapshot = await waitForView(actor, "listening", 5000);
+    expect(snapshot).toBeTruthy();
+  });
 
   /** just for the reference (tests couldn't be run on mobile Safari) */
   test.skip("synthesise in chain, fails on mobile safari", async () => {

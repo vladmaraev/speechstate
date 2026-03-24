@@ -33,6 +33,11 @@ async function run() {
         words =
           "Hello, |this |is |a |<v>|test |of stre|aming |messa|ges |one |by |one!| |[end]";
         break;
+      case "3":
+        words =
+          "this |is |a |test |. You |can |inter|rupt |me, |whenever |you like|!| |[end]";
+        break;
+
       case "emptydone":
         words = "|[end]";
         break;
