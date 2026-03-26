@@ -40,6 +40,7 @@
     ]
   },
   "devDependencies": {
+    "@docmd/core": "^0.6.3",
     "@statelyai/inspect": "^0.4.0",
     "@testing-library/dom": "^10.4.0",
     "@types/dom-speech-recognition": "^0.0.6",
