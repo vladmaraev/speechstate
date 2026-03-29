@@ -2,6 +2,11 @@
 :root {
   --link-color: #262ed3;
 
+  .lucide-icon {
+    stroke-width: 1.7px; /* Thinner icons for a modern look */
+    width: 1.2rem;
+    height: 1.2rem;
+  }
   /* Override the default sans-serif font */
   --font-family-sans:
     "Source Sans 3", -apple-system, BlinkMacSystemFont, sans-serif;

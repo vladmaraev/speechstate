@@ -2,7 +2,7 @@
 title: "Speech Synthesis (TTS)"
 ---
 ## Settings
-Settings are provided as input to SpeechState agent.
+Settings are provided as input to speechstate agent.
 
 | Parameter               | Type     | Explanation | Default               |
 |-------------------------|----------|-------------|-----------------------|

@@ -87,13 +87,13 @@ const settings: Settings = {
 - [Spawn](https://stately.ai/docs/actor-model#spawning)
 :::
 
-Import SpeechState agent:
+Import **speechstate** agent:
 
 ```typescript
   import { speechstate } from "speechstate";
 ```
 
-Spawn SpeechState agent with Settings, i.e. when defining your `context`:
+Spawn **speechstate** agent with Settings, i.e. when defining your `context`:
 ```typescript
   context: ({ spawn }) => ({
     spstRef: spawn(speechstate, { input: settings }),
@@ -103,7 +103,7 @@ Spawn SpeechState agent with Settings, i.e. when defining your `context`:
 
 ## Preparing speech resources
 
-To initialise speech resources, send a `PREPARE` event to SpeechState agent. When speech resources are initialised, SpeechState communicates back the `ASRTTS_READY` event, and you can move on with exectuting your desired logic.
+To initialise speech resources, send a `PREPARE` event to SpeechState agent. When speech resources are initialised, **speechstate** communicates back the `ASRTTS_READY` event, and you can move on with exectuting your desired logic.
 
 ```typescript
 const dmMachine = setup({}).createMachine({

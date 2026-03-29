@@ -1,17 +1,17 @@
 // docmd.config.js
 export default defineConfig({
   // --- Core Metadata ---
-  title: "SpeechState",
+  title: "↬ speechstate ↫",
   url: "", // e.g. https://mysite.com (Critical for SEO/Sitemap)
 
   // --- Branding ---
   // logo: {
-  //   light: "assets/images/docmd-logo-dark.png",
+  //   light: "assets/images/lolli.svg",
   //   dark: "assets/images/docmd-logo-light.png",
   //   alt: "Logo",
   //   href: "/",
   // },
-  // favicon: 'assets/favicon.ico',
+  favicon: 'assets/favicon.svg',
 
   // --- Source & Output ---
   src: "docs",
