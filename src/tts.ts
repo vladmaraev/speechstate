@@ -22,7 +22,7 @@ import {
 
 import { createSpeechSynthesisPonyfill } from "web-speech-cognitive-services";
 
-const UTTERANCE_CHUNK_REGEX = /(^.*([!?]+|([.,]+\s)))/;
+const UTTERANCE_CHUNK_REGEX = /(^.*([!?—]+|([.,]+\s)))/;
 
 export const ttsMachine = setup({
   types: {} as {
