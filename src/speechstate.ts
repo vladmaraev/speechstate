@@ -14,8 +14,6 @@ import { getToken } from "./getToken";
 
 import type {
   Settings,
-  Agenda,
-  Hypothesis,
   RecogniseParameters,
   SpeechStateEvent,
 } from "./types";

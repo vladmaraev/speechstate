@@ -3,6 +3,16 @@ export interface AzureSpeechCredentials {
   key: string;
 }
 
+export interface AzureSpeechTokenProxyCredentials {
+  proxyUrl: string;
+  key?: string;
+}
+
+/**
+ * @deprecated use `AzureSpeechTokenProxyCredentials` instead
+ */
+type DeprecatedAzureSpeechTokenProxyCredentials = string;
+
 /**
  * @deprecated use `AzureSpeechCredentials` instead
  */
@@ -19,7 +29,7 @@ export interface Settings {
   bargeIn: undefined | false | RecogniseParameters;
   locale?: string;
   noPonyfill?: boolean;
-  azureCredentials?: string | AzureSpeechCredentials;
+  azureCredentials?: AzureSpeechTokenProxyCredentials | AzureSpeechCredentials | DeprecatedAzureSpeechTokenProxyCredentials;
   azureRegion?: string;
   azureLanguageCredentials?: AzureLanguageCredentials;
   asrDefaultCompleteTimeout?: number;

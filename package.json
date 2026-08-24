@@ -2,7 +2,7 @@
   "name": "speechstate",
   "license": "GPL-3.0",
   "version": "2.16.0",
-  "homepage": "http://localhost/speechstate",
+  "homepage": "https://speechstate.maraev.me",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [

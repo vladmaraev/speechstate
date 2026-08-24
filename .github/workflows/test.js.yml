@@ -3,6 +3,11 @@ name: Compile and package
 on:
   pull_request:
     branches: [ "master" ]
+
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
 
@@ -20,12 +25,9 @@ jobs:
       - run: yarn exec tsc
       - run: npm version prerelease --no-git-tag-version --preid=${{ format('pr{0}-{1}-{2}', github.event.number, github.run_attempt, github.run_id) }}
 
-      - uses: actions/setup-node@v4       
+      - uses: actions/setup-node@v6
         with:
-          node-version: '14.x'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       - name: Publish to NPM registry
         run: npm publish --tag ${{ format('pr{0}', github.event.number) }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
