@@ -118,6 +118,12 @@ export default defineConfig({
       external: true,
     },
     {
+      title: "npm registry",
+      path: "https://www.npmjs.com/package/speechstate",
+      icon: "package",
+      external: true,
+    },
+    {
       title: "XState documentation",
       path: "https://stately.ai/docs",
       external: true,
