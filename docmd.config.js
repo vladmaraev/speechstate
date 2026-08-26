@@ -11,7 +11,7 @@ export default defineConfig({
   //   alt: "Logo",
   //   href: "/",
   // },
-  favicon: 'assets/favicon.svg',
+  favicon: "assets/favicon.svg",
 
   // --- Source & Output ---
   src: "docs",
@@ -39,7 +39,7 @@ export default defineConfig({
     },
     footer: {
       style: "minimal", // 'minimal' or 'complete'
-      content: "2001 – " + new Date().getFullYear() + " SpeechState",
+      content: "2021 – " + new Date().getFullYear() + " SpeechState",
       branding: true, // Config for "Built with docmd" badge
     },
   },
@@ -85,7 +85,7 @@ export default defineConfig({
       title: "Getting started",
       icon: "rocket",
       collapsible: false,
-      path: "installation",
+      path: "/installation",
     },
     {
       title: "Core features",
@@ -96,19 +96,19 @@ export default defineConfig({
           title: "Speech Synthesis",
           path: "",
           icon: "audio-waveform",
-          path: "tts",
+          path: "/tts",
         },
         {
           title: "Speech Recognition",
           path: "",
           icon: "mic-vocal",
-          path: "asr",
+          path: "/asr",
         },
       ],
     },
     {
       title: "Events guide",
-      path: "event",
+      path: "/event",
       icon: "message-circle-code",
     },
     {
@@ -139,6 +139,7 @@ export default defineConfig({
       twitter: { cardType: "summary_large_image" },
     },
     sitemap: { defaultChangefreq: "weekly" },
+    ai: { assistant: false },
     search: {},
     mermaid: {},
     llms: {},
