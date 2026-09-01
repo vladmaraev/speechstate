@@ -3,6 +3,11 @@ name: Compile and package
 on:
   pull_request:
     branches: [ "master" ]
+
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
 
