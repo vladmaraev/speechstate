@@ -42,7 +42,7 @@ export const asrMachine = setup({
   },
   guards: {
     nlu_is_activated: ({ context }) => {
-      const nlu = (context.params || {}).nlu;
+      const nlu = context.params?.nlu;
       if (nlu) {
         if (typeof nlu === "object") {
           return true;
@@ -304,7 +304,7 @@ export const asrMachine = setup({
                 ({ context }) =>
                   console.debug(
                     "[ASR] START_NOINPUT_TIMEOUT",
-                    context.params.noInputTimeout ??
+                    context.params?.noInputTimeout ??
                       context.asrDefaultNoInputTimeout,
                   ),
                 { type: "raise_noinput_after_timeout" },
