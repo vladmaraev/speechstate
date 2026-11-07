@@ -275,7 +275,7 @@ describe("Synthesis test", async () => {
     expect(snapshot).toBeTruthy();
   });
 
-  test.only("barge-in: synthesise, pause, speak again", async () => {
+  test("barge-in: synthesise, pause, speak again", async () => {
     actor.getSnapshot().context.ssRef.send({
       type: "SPEAK",
       value: {
