@@ -2,10 +2,17 @@ name: Node.js CI
 
 on:
   release:
-    types: [published]    
-jobs:
-  build:
+    types: [published]
+  pull_request:
+    branches: ["master"]
 
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-release:
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
 
     permissions:
@@ -24,3 +31,25 @@ jobs:
       - run: yarn exec tsc
       - name: Publish to NPM registry
         run: npm publish --access public
+
+  publish-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-24.05
+
+      - run: nix develop
+      - run: yarn --immutable
+      - run: yarn exec tsc
+      - run: npm version prerelease --no-git-tag-version --preid=${{ format('pr{0}-{1}-{2}', github.event.number, github.run_attempt, github.run_id) }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Publish to NPM registry
+        run: npm publish --tag ${{ format('pr{0}', github.event.number) }}

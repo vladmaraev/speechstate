@@ -313,6 +313,12 @@ const speechstate = setup({
                 },
                 UPDATE_ASR_PARAMETERS: {
                   actions: [
+                    assign(({ context, event }) => ({
+                      bargeIn:
+                        context.bargeIn && typeof context.bargeIn === "object"
+                          ? { ...context.bargeIn, ...event.value }
+                          : context.bargeIn,
+                    })),
                     () => console.debug("[SpSt→ASR] UPDATE_ASR_PARAMETERS *"),
                     ({ context, event }) =>
                       context.asrRef.send({
