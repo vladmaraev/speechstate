@@ -34,6 +34,7 @@ const settings: Settings = {
   asrDefaultNoInputTimeout: 5000,
   locale: "en-US",
   ttsDefaultVoice: "en-US-DavisNeural",
+  ttsDefaultSpeechRate: 1.5, // Will be used if an utterance doesn't specify one
   // speechRecognitionEndpointId: "",
 };
 
@@ -51,6 +52,7 @@ const speechMachine = createMachine({
           value: {
             utterance: `Hi`,
             voice: "en-US-AvaNeural",
+            speechRate: 0.8, // Overrides the default 1.5 speech rate
             visemes: true,
           },
         }),

@@ -58,6 +58,7 @@ const speechstate = setup({
             ttsDefaultVoice: context.settings.ttsDefaultVoice,
             ttsDefaultFillerDelay: context.settings.ttsDefaultFillerDelay,
             ttsDefaultFiller: context.settings.ttsDefaultFiller,
+            ttsDefaultSpeechRate: context.settings.ttsDefaultSpeechRate,
             ttsLexicon: context.settings.ttsLexicon,
             audioContext: context.audioContext,
             azureRegion: context.settings.azureRegion,
