@@ -39,6 +39,7 @@ export interface Settings {
   ttsLexicon?: string;
   ttsDefaultFillerDelay?: number;
   ttsDefaultFiller?: string;
+  ttsDefaultSpeechRate?: number;
   newTokenInterval?: number;
 }
 
@@ -52,6 +53,7 @@ export interface Agenda {
   fillerDelay?: number;
   visemes?: boolean;
   audioURL?: string;
+  speechRate?: number;
 }
 
 export interface Hypothesis {
@@ -163,6 +165,7 @@ export interface TTSInit {
   ttsDefaultVoice: string;
   ttsDefaultFillerDelay?: number;
   ttsDefaultFiller?: string;
+  ttsDefaultSpeechRate?: number;
   ttsLexicon?: string;
   locale: string;
 }

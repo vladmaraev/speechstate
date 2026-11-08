@@ -225,6 +225,7 @@ export const ttsMachine = setup({
         voice: string;
         ttsLexicon: string;
         locale: string;
+        speechRate: number;
         wsaUtt: {
           prototype: SpeechSynthesisUtterance;
           new (text?: string): SpeechSynthesisUtterance;
@@ -249,12 +250,13 @@ export const ttsMachine = setup({
             input.voice,
             input.locale,
             input.ttsLexicon,
-            1,
-          ); // todo speech rate;
+            input.speechRate,
+          );
           utterance = new wsaUtt(content);
         } else {
           const wsaUtt = SpeechSynthesisUtterance;
           utterance = new wsaUtt(input.utterance);
+          utterance.rate = input.speechRate;
           // utterance.voice = wsaTTS.getVoices()[0];
           console.debug(wsaTTS.getVoices().map((x) => x.name));
           const voice = wsaTTS.getVoices().find((x) => x.name === input.voice);
@@ -306,6 +308,7 @@ export const ttsMachine = setup({
     ttsDefaultVoice: input.ttsDefaultVoice || "en-US-DavisNeural",
     ttsDefaultFillerDelay: input.ttsDefaultFillerDelay || 500,
     ttsDefaultFiller: input.ttsDefaultFiller || "um,",
+    ttsDefaultSpeechRate: input.ttsDefaultSpeechRate || 1,
     ttsLexicon: input.ttsLexicon,
     audioContext: input.audioContext,
     azureRegion: input.azureRegion,
@@ -653,6 +656,9 @@ export const ttsMachine = setup({
                                 context.currentLocale ||
                                 context.agenda.locale ||
                                 context.locale,
+                              speechRate:
+                                context.agenda.speechRate ||
+                                context.ttsDefaultSpeechRate || 1,
                               utterance: context.utteranceFromStream,
                             }),
                           },
@@ -804,6 +810,9 @@ export const ttsMachine = setup({
                         context.currentLocale ||
                         context.agenda.locale ||
                         context.locale,
+                      speechRate:
+                        context.agenda.speechRate ||
+                        context.ttsDefaultSpeechRate || 1,
                       utterance: context.agenda.utterance,
                     }),
                   },
